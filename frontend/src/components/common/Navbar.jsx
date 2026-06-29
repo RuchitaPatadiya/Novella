@@ -1,11 +1,60 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import logoImg from "../../assets/logo1.png";
+import { useWishlist } from "../../context/WishlistContext";
+import { useCart } from "../../context/CartContext";
+import SearchOverlay from "../search/SearchOverlay";
+
+const navLinks = [
+  {
+    label: "Shop",
+    to: "/shop",
+    mega: [
+      { label: "Furniture",         to: "/shop/furniture",         desc: "Sofas, tables, beds & more" },
+      { label: "Lighting",          to: "/shop/lighting",          desc: "Lamps, pendants & sconces"  },
+      { label: "Wall Decor",        to: "/shop/wall-decor",        desc: "Art, mirrors & wall panels" },
+      { label: "Textiles",          to: "/shop/textiles",          desc: "Rugs, cushions & throws"    },
+      { label: "Decor Accessories", to: "/shop/decor-accessories", desc: "Vases, candles & objects"   },
+    ],
+  },
+  {
+    label: "Spaces",
+    to: "/spaces",
+    mega: [
+      { label: "Living Room", to: "/spaces/living-room", desc: "Style your main space"      },
+      { label: "Bedroom",     to: "/spaces/bedroom",     desc: "Rest in refined comfort"    },
+      { label: "Dining Room", to: "/spaces/dining-room", desc: "Gather around beauty"       },
+      { label: "Home Office", to: "/spaces/home-office", desc: "Work in an inspired space"  },
+      { label: "Outdoor",     to: "/spaces/outdoor",     desc: "Extend your living outside" },
+    ],
+  },
+  {
+    label: "Collections",
+    to: "/collections",
+    mega: [
+      { label: "Modern Minimalist", to: "/collections/modern-minimalist", desc: "Clean lines, calm spaces"    },
+      { label: "Luxury Living",     to: "/collections/luxury-living",     desc: "Opulence, refined"           },
+      { label: "Scandinavian",      to: "/collections/scandinavian",      desc: "Nordic warmth & simplicity"  },
+      { label: "Boho Chic",         to: "/collections/boho-chic",         desc: "Layered, free-spirited"      },
+      { label: "New Arrivals",      to: "/collections/new-arrivals",      desc: "Just landed this season"     },
+      { label: "Best Sellers",      to: "/collections/best-sellers",      desc: "Our most loved pieces"       },
+    ],
+  },
+  { label: "About",   to: "/about"   },
+  { label: "Contact", to: "/contact" },
+];
 
 const Navbar = () => {
-  const [scrolled, setScrolled] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const { wishlist } = useWishlist();
+  const { cartCount } = useCart();
+  const [scrolled,   setScrolled]   = useState(false);
+  const [menuOpen,   setMenuOpen]   = useState(false);
+  const [activeMega, setActiveMega] = useState(null);
+  const [mobileOpen, setMobileOpen] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
+
+  const isSolid = scrolled || activeMega;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -13,220 +62,284 @@ const Navbar = () => {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  useEffect(() => { setMenuOpen(false); }, [location]);
+  useEffect(() => {
+    setMenuOpen(false);
+    setActiveMega(null);
+    setSearchOpen(false);
+  }, [location]);
 
   useEffect(() => {
     document.body.style.overflow = menuOpen ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [menuOpen]);
 
-  const navLinks = [
-    { label: "Shop", to: "/shop" },
-    { label: "Collections", to: "/collections" },
-    { label: "About", to: "/about" },
-    { label: "Contact", to: "/contact" },
-  ];
-
   return (
     <>
-      {/* Font */}
-      <link
-        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500&display=swap"
-        rel="stylesheet"
-      />
-
       <nav
-        className="fixed top-0 left-0 right-0 z-50 h-[76px] flex items-center justify-between px-8 md:px-14 transition-all duration-500"
-        style={{
-          background: scrolled
-            ? "rgba(28, 18, 8, 0.92)"
-            : "linear-gradient(to bottom, rgba(0,0,0,0.45), transparent)",
-          backdropFilter: scrolled ? "blur(14px)" : "none",
-          WebkitBackdropFilter: scrolled ? "blur(14px)" : "none",
-          borderBottom: scrolled ? "1px solid rgba(200,169,126,0.15)" : "none",
-        }}
+        onMouseLeave={() => setActiveMega(null)}
+        className={`fixed top-0 left-0 right-0 z-50 h-[76px] flex items-center justify-between px-8 md:px-14 transition-all duration-500 ${
+          isSolid
+            ? "bg-dark/95 backdrop-blur-md border-b border-gold/12"
+            : "bg-gradient-to-b from-black/45 to-transparent"
+        }`}
       >
-        {/* ── LOGO ── */}
-        <Link to="/" className="flex items-center gap-3 no-underline group">
+        <Link to="/" className="flex items-center gap-3 no-underline group shrink-0">
           <img
             src={logoImg}
             alt="Novella"
-            className="w-8 h-8 object-contain"
-            style={{
-              filter: "invert(1) sepia(1) saturate(1.5) hue-rotate(5deg) brightness(0.9)",
-            }}
+            className="w-10 h-10 object-contain [filter:invert(1)_sepia(1)_saturate(1.5)_hue-rotate(5deg)_brightness(0.9)]"
           />
           <div className="flex flex-col leading-none">
-            <span
-              className="text-white tracking-[0.25em] uppercase group-hover:text-[#C8A97E] transition-colors duration-300"
-              style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 600, fontSize: "1.05rem" }}
-            >
+            <span className="font-display font-semibold text-[1.05rem] text-white tracking-[0.25em] uppercase transition-colors duration-300 group-hover:text-gold">
               Novella
             </span>
-            <span
-              className="text-[#C8A97E]/65 tracking-[0.35em] uppercase mt-[2px]"
-              style={{ fontFamily: "'Jost', sans-serif", fontWeight: 300, fontSize: "0.42rem" }}
-            >
+            <span className="font-body font-light text-[0.42rem] text-gold/50 tracking-[0.35em] uppercase mt-[2px]">
               Home &amp; Décor
             </span>
           </div>
         </Link>
 
-        {/* ── DESKTOP NAV ── */}
-        <ul className="hidden md:flex items-center list-none m-0 p-0" style={{ gap: "2.8rem" }}>
-          {navLinks.map((link) => (
-            <li key={link.to} className="relative group">
-              <Link
-                to={link.to}
-                className="no-underline transition-colors duration-300"
-                style={{
-                  fontFamily: "'Jost', sans-serif",
-                  fontWeight: 400,
-                  fontSize: "0.68rem",
-                  letterSpacing: "0.2em",
-                  textTransform: "uppercase",
-                  color: location.pathname === link.to ? "#C8A97E" : "rgba(255,255,255,0.75)",
-                }}
+        <ul className="hidden md:flex items-center list-none m-0 p-0 gap-[2.4rem]">
+          {navLinks.map((link) => {
+            const isActive = location.pathname === link.to || location.pathname.startsWith(link.to + "/");
+            const isOpen   = activeMega === link.label;
+            return (
+              <li
+                key={link.label}
+                className="relative"
+                onMouseEnter={() => setActiveMega(link.mega ? link.label : null)}
               >
-                {link.label}
-              </Link>
-              {/* animated underline */}
-              <span
-                className="absolute -bottom-1 left-0 h-px bg-[#C8A97E] transition-all duration-300"
-                style={{ width: location.pathname === link.to ? "100%" : "0%" }}
-              />
-              <span className="absolute -bottom-1 left-0 h-px bg-[#C8A97E] w-0 group-hover:w-full transition-all duration-300" />
-            </li>
-          ))}
+                <Link
+                  to={link.to}
+                  className={`no-underline flex items-center gap-1.5 font-body font-normal text-[0.68rem] tracking-[0.2em] uppercase transition-colors duration-300 hover:text-white/85 ${
+                    isActive || isOpen ? "text-gold" : "text-white/50"
+                  }`}
+                >
+                  {link.label}
+                  {link.mega && (
+                    <svg
+                      width="8" height="5" viewBox="0 0 10 6" fill="none"
+                      className={`text-gold/50 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+                    >
+                      <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  )}
+                </Link>
+
+                {isActive && (
+                  <span className="absolute -bottom-[10px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-gold" />
+                )}
+              </li>
+            );
+          })}
         </ul>
 
-        {/* ── RIGHT ICONS ── */}
         <div className="flex items-center gap-5">
-          {/* Search */}
           <button
             aria-label="Search"
-            className="text-white/55 hover:text-[#C8A97E] transition-colors duration-300 bg-transparent border-0 cursor-pointer p-1 flex items-center"
+            onClick={() => setSearchOpen(true)}
+            className="text-white/55 hover:text-gold transition-colors duration-300 bg-transparent border-0 cursor-pointer p-1 flex items-center"
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
 
-          {/* Wishlist */}
-          <button
+          <Link
+            to="/wishlist"
             aria-label="Wishlist"
-            className="hidden md:flex text-white/55 hover:text-[#C8A97E] transition-colors duration-300 bg-transparent border-0 cursor-pointer p-1 items-center"
+            className="relative text-white/55 hover:text-gold transition-colors duration-300 p-1 flex items-center no-underline"
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
-          </button>
+            {wishlist.length > 0 && (
+              <span className="absolute -top-1 -right-1 bg-gold text-dark-deep font-body text-[0.55rem] font-bold w-[14px] h-[14px] rounded-full flex items-center justify-center">
+                {wishlist.length}
+              </span>
+            )}
+          </Link>
 
-          {/* Cart */}
-          <Link
-            to="/cart"
-            aria-label="Cart"
-            className="relative text-white/55 hover:text-[#C8A97E] transition-colors duration-300 p-1 flex items-center no-underline"
-          >
+          <Link to="/cart" aria-label="Cart" className="relative text-white/55 hover:text-gold transition-colors duration-300 p-1 flex items-center no-underline">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
               <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
               <line x1="3" y1="6" x2="21" y2="6" />
               <path d="M16 10a4 4 0 01-8 0" />
             </svg>
-            <span className="absolute -top-1 -right-1 bg-[#C8A97E] text-[#0F0C0A] text-[0.55rem] font-bold w-[14px] h-[14px] rounded-full flex items-center justify-center"
-              style={{ fontFamily: "'Jost', sans-serif" }}>
-              0
+            <span className="absolute -top-1 -right-1 bg-gold text-dark-deep font-body text-[0.55rem] font-bold w-[14px] h-[14px] rounded-full flex items-center justify-center">
+              {cartCount}
             </span>
           </Link>
 
-          {/* Profile */}
-          <Link
-            to="/login"
-            aria-label="Account"
-            className="hidden md:flex text-white/55 hover:text-[#C8A97E] transition-colors duration-300 p-1 items-center no-underline"
-          >
+          <Link to="/login" aria-label="Account" className="hidden md:flex text-white/55 hover:text-gold transition-colors duration-300 p-1 items-center no-underline">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
           </Link>
 
-          {/* Divider + CTA on desktop */}
-          <div className="hidden lg:flex items-center gap-4 ml-2 pl-5 border-l border-white/15">
-            <Link
-              to="/shop"
-              className="no-underline px-5 py-2 text-[#0F0C0A] bg-[#C8A97E] hover:bg-[#d4b98a] transition-colors duration-300"
-              style={{
-                fontFamily: "'Jost', sans-serif",
-                fontWeight: 500,
-                fontSize: "0.62rem",
-                letterSpacing: "0.2em",
-                textTransform: "uppercase",
-              }}
-            >
-              Shop Now
-            </Link>
-          </div>
-
-          {/* Hamburger */}
           <button
             aria-label="Toggle menu"
-            onClick={() => setMenuOpen((o) => !o)}
+            onClick={() => setMenuOpen(o => !o)}
             className="md:hidden flex flex-col gap-[5px] bg-transparent border-0 cursor-pointer p-1 ml-1"
           >
             <span className={`block w-5 h-px bg-white/80 transition-all duration-300 origin-center ${menuOpen ? "rotate-45 translate-y-[6px]" : ""}`} />
-            <span className={`block w-5 h-px bg-white/80 transition-all duration-300 ${menuOpen ? "opacity-0 w-0" : "opacity-100"}`} />
+            <span className={`block w-5 h-px bg-white/80 transition-all duration-300 ${menuOpen ? "opacity-0" : "opacity-100"}`} />
             <span className={`block w-5 h-px bg-white/80 transition-all duration-300 origin-center ${menuOpen ? "-rotate-45 -translate-y-[6px]" : ""}`} />
           </button>
         </div>
       </nav>
 
-      {/* ── MOBILE DRAWER ── */}
+      {navLinks.filter(l => l.mega).map(link => (
+        <div
+          key={link.label}
+          onMouseEnter={() => setActiveMega(link.label)}
+          onMouseLeave={() => setActiveMega(null)}
+          className={`fixed left-0 right-0 z-40 top-[76px] bg-dark/97 backdrop-blur-xl border-b border-gold/12 transition-all duration-200 ease-out ${
+            activeMega === link.label
+              ? "opacity-100 translate-y-0 pointer-events-auto"
+              : "opacity-0 -translate-y-1.5 pointer-events-none"
+          }`}
+        >
+          <div className="max-w-6xl mx-auto px-14 py-10 flex gap-16 items-start">
+
+            <div className="shrink-0 min-w-[140px]">
+              <p className="font-body font-light text-[0.55rem] tracking-[0.38em] uppercase text-gold/50 m-0 mb-2">
+                Browse
+              </p>
+              <h3 className="font-display font-light italic text-[1.9rem] text-white/90 m-0 mb-3.5 leading-tight">
+                {link.label}
+              </h3>
+              <div className="w-6 h-px bg-gold" />
+            </div>
+
+            <div
+              className="flex-1 grid gap-x-10 gap-y-1"
+              style={{ gridTemplateColumns: `repeat(${link.mega.length > 4 ? 2 : 1}, 1fr)` }}
+            >
+              {link.mega.map(item => (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className="no-underline group flex flex-col py-2.5 border-b border-gold/10 hover:border-gold/20 transition-colors duration-200"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-[3px] h-[3px] rounded-full bg-gold opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0" />
+                    <span className="font-body font-normal text-[0.8rem] tracking-[0.06em] text-white/50 group-hover:text-white/85 transition-colors duration-200">
+                      {item.label}
+                    </span>
+                  </div>
+                  {item.desc && (
+                    <span className="font-body font-light text-[0.65rem] text-gold/35 mt-0.5 pl-[11px]">
+                      {item.desc}
+                    </span>
+                  )}
+                </Link>
+              ))}
+            </div>
+
+            <div className="shrink-0 hidden lg:flex flex-col justify-between w-[180px] p-5 border border-gold/12 bg-gold/5">
+              <div>
+                <p className="font-body font-light text-[0.55rem] tracking-[0.3em] uppercase text-gold/50 m-0 mb-2">
+                  Featured
+                </p>
+                <p className="font-display font-normal text-base text-white/85 m-0 mb-4 leading-snug">
+                  New Arrivals<br />This Season
+                </p>
+              </div>
+              <Link
+                to="/collections/new-arrivals"
+                className="no-underline flex items-center gap-1.5 font-body font-medium text-[0.58rem] tracking-[0.2em] uppercase text-gold hover:brightness-110 transition-all duration-200"
+              >
+                Discover
+                <svg width="14" height="6" viewBox="0 0 18 8" fill="none" className="text-current">
+                  <path d="M0 4H16M13 1L16 4L13 7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </Link>
+            </div>
+          </div>
+        </div>
+      ))}
+
       <div
-        className="fixed inset-0 z-40 flex flex-col items-center justify-center gap-9 transition-all duration-500"
-        style={{
-          background: "rgba(28,18,8,0.98)",
-          opacity: menuOpen ? 1 : 0,
-          pointerEvents: menuOpen ? "auto" : "none",
-          transform: menuOpen ? "translateX(0)" : "translateX(100%)",
-        }}
+        className={`fixed inset-0 z-40 flex flex-col bg-dark/98 transition-all duration-500 overflow-y-auto pt-[90px] pb-8 px-8 ${
+          menuOpen
+            ? "opacity-100 translate-x-0 pointer-events-auto"
+            : "opacity-0 translate-x-full pointer-events-none"
+        }`}
       >
-        {/* Mobile logo */}
-        <div className="flex items-center gap-2 mb-6 opacity-50">
-          <img src={logoImg} alt="Novella" className="w-7 h-7 object-contain"
-            style={{ filter: "invert(1) sepia(1) saturate(1.5) hue-rotate(5deg) brightness(0.9)" }} />
-          <span className="text-white tracking-[0.25em] uppercase"
-            style={{ fontFamily: "'Cormorant Garamond', serif", fontWeight: 500, fontSize: "1rem" }}>
+        <div className="flex items-center gap-2 mb-8 opacity-40">
+          <img
+            src={logoImg}
+            alt="Novella"
+            className="w-7 h-7 object-contain [filter:invert(1)_sepia(1)_saturate(1.5)_hue-rotate(5deg)_brightness(0.9)]"
+          />
+          <span className="font-display font-medium text-base text-white tracking-[0.25em] uppercase">
             Novella
           </span>
         </div>
 
-        {navLinks.map((link, i) => (
-          <Link
-            key={link.to}
-            to={link.to}
-            className="no-underline transition-colors duration-200"
-            style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontWeight: 300,
-              fontStyle: "italic",
-              fontSize: "2.4rem",
-              letterSpacing: "0.06em",
-              color: location.pathname === link.to ? "#C8A97E" : "rgba(255,255,255,0.85)",
-              transitionDelay: `${i * 60}ms`,
-            }}
-          >
-            {link.label}
-          </Link>
+        {navLinks.map((link) => (
+          <div key={link.label} className="border-b border-gold/10">
+            <div
+              className="flex items-center justify-between py-4 cursor-pointer"
+              onClick={() => link.mega && setMobileOpen(mobileOpen === link.label ? null : link.label)}
+            >
+              <Link
+                to={link.to}
+                className={`no-underline font-display font-light italic text-[2rem] tracking-[0.04em] transition-colors duration-200 ${
+                  location.pathname === link.to ? "text-gold" : "text-white/85"
+                }`}
+              >
+                {link.label}
+              </Link>
+              {link.mega && (
+                <svg
+                  width="10" height="6" viewBox="0 0 10 6" fill="none"
+                  className={`text-gold/50 shrink-0 transition-transform duration-300 ${
+                    mobileOpen === link.label ? "rotate-180" : ""
+                  }`}
+                >
+                  <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+            </div>
+
+            {link.mega && mobileOpen === link.label && (
+              <div className="pb-4 flex flex-col gap-3 pl-2">
+                {link.mega.map(sub => (
+                  <Link
+                    key={sub.label}
+                    to={sub.to}
+                    className="no-underline font-body font-light text-[0.85rem] tracking-[0.06em] text-white/50 hover:text-gold transition-colors duration-200"
+                  >
+                    — {sub.label}
+                    {sub.desc && (
+                      <span className="block text-[0.62rem] text-gold/30 mt-px">
+                        {sub.desc}
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
 
-        <Link to="/login"
-          className="mt-6 no-underline text-white/35 hover:text-[#C8A97E] transition-colors duration-200"
-          style={{ fontFamily: "'Jost', sans-serif", fontWeight: 400, fontSize: "0.65rem", letterSpacing: "0.22em", textTransform: "uppercase" }}>
-          My Account
-        </Link>
+        <div className="flex gap-6 mt-8 flex-wrap">
+          <Link to="/login" className="no-underline font-body font-normal text-[0.65rem] tracking-[0.22em] uppercase text-white/50">
+            Account
+          </Link>
+          <Link to="/wishlist" className="no-underline font-body font-normal text-[0.65rem] tracking-[0.22em] uppercase text-white/50">
+            Wishlist ({wishlist.length})
+          </Link>
+          <Link to="/cart" className="no-underline font-body font-normal text-[0.65rem] tracking-[0.22em] uppercase text-white/50">
+            Cart ({cartCount})
+          </Link>
+        </div>
       </div>
+
+      <SearchOverlay isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
     </>
   );
 };

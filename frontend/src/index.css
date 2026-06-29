@@ -1,2 +1,29 @@
 @import "tailwindcss";
 
+/* ── Novella · Warm Atelier (Option 1) ── */
+@theme {
+  /* Backgrounds */
+  --color-background: #fdfaf6;
+  --color-surface: #f5f0e8;
+
+  /* Dark sections */
+  --color-dark: #13100a;
+  --color-dark-deep: #0d0a06;
+
+  /* Accents */
+  --color-gold: #c9a84c;
+  --color-bronze: #b07d3a;
+
+  /* Text */
+  --color-ink: #2c2416;
+  --color-cream: #faf0e0;
+  --color-cream-muted: #f0e6d3;
+  --color-muted: #8a7d6b;
+
+  /* Borders */
+  --color-border: #e8e0d5;
+
+  /* Typography */
+  --font-display: "Cormorant Garamond", serif;
+  --font-body: "Jost", sans-serif;
+}
