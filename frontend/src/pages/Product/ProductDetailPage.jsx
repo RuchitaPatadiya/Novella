@@ -4,6 +4,9 @@ import { products } from "../../utils/mockData";
 import BrandStrip from "../../components/home/BrandStrip";
 import { useWishlist } from "../../context/WishlistContext";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
+import { useProducts } from "../../context/ProductContext";
+import API from "../../services/api";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -23,6 +26,73 @@ const ProductDetailPage = () => {
 
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { addToCart } = useCart();
+  const { user } = useAuth();
+  const { refreshProducts } = useProducts();
+
+  // Reviews and ratings list state
+  const [reviews, setReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [userRating, setUserRating] = useState(5);
+  const [userComment, setUserComment] = useState("");
+  const [reviewError, setReviewError] = useState("");
+  const [reviewSuccess, setReviewSuccess] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // Fetch reviews on load/change
+  useEffect(() => {
+    const fetchReviews = async () => {
+      setReviewsLoading(true);
+      try {
+        const res = await API.get(`/products/${id}/reviews`);
+        setReviews(res.data);
+      } catch (err) {
+        console.error("Failed to load reviews:", err);
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+    if (id) {
+      fetchReviews();
+      setUserRating(5);
+      setUserComment("");
+      setReviewError("");
+      setReviewSuccess("");
+    }
+  }, [id]);
+
+  const handleReviewSubmit = async (e) => {
+    e.preventDefault();
+    setReviewError("");
+    setReviewSuccess("");
+    setIsSubmittingReview(true);
+
+    if (!userComment.trim()) {
+      setReviewError("Please write a review comment before submitting.");
+      setIsSubmittingReview(false);
+      return;
+    }
+
+    try {
+      const res = await API.post(`/products/${id}/reviews`, {
+        rating: userRating,
+        comment: userComment,
+      });
+
+      setReviews((prev) => [res.data, ...prev]);
+      setReviewSuccess("Review posted successfully! Thank you for your feedback.");
+      setUserComment("");
+      setUserRating(5);
+
+      // Re-fetch catalog to update ratings and reviewsCount on detail page
+      if (refreshProducts) {
+        await refreshProducts();
+      }
+    } catch (err) {
+      setReviewError(err.response?.data?.message || "Failed to submit review.");
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   // Scroll to top on load or product switch
   useEffect(() => {
@@ -352,6 +422,180 @@ const ProductDetailPage = () => {
               </div>
             </div>
 
+          </div>
+        </div>
+      </section>
+
+      {/* Reviews Section */}
+      <section className="px-[clamp(1.5rem,5vw,4rem)] py-16 md:py-20 border-t border-border bg-background">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-12">
+          {/* Left Column: Overall Rating & Write Review */}
+          <div className="lg:col-span-1">
+            <h3 className="font-display font-light text-2xl text-ink mb-6">
+              Ratings &amp; Reviews
+            </h3>
+
+            {/* Score box */}
+            <div className="flex items-center gap-4.5 mb-8">
+              <span className="font-display font-semibold text-5xl text-ink leading-none">
+                {product?.rating || 0}
+              </span>
+              <div className="flex flex-col">
+                <div className="flex items-center text-gold gap-0.5 mb-1">
+                  {[...Array(5)].map((_, idx) => (
+                    <svg
+                      key={idx}
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill={idx < Math.floor(product?.rating || 0) ? "currentColor" : "none"}
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                  ))}
+                </div>
+                <span className="font-body text-[0.68rem] tracking-wider uppercase text-muted">
+                  Based on {product?.reviewsCount || 0} Reviews
+                </span>
+              </div>
+            </div>
+
+            {/* Form Box */}
+            <div className="border-t border-border pt-8">
+              <h4 className="font-body font-medium text-xs tracking-wider uppercase text-ink mb-4">
+                Share your experience
+              </h4>
+
+              {reviewSuccess && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 text-xs font-body tracking-[0.02em] mb-4 rounded-sm">
+                  {reviewSuccess}
+                </div>
+              )}
+              {reviewError && (
+                <div className="bg-red-50 border border-red-200 text-red-800 p-4 text-xs font-body tracking-[0.02em] mb-4 rounded-sm">
+                  {reviewError}
+                </div>
+              )}
+
+              {user ? (
+                <form onSubmit={handleReviewSubmit} className="flex flex-col gap-4">
+                  {/* Stars select */}
+                  <div>
+                    <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-2">Rating</label>
+                    <div className="flex items-center gap-1.5 text-gold">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setUserRating(star)}
+                          className="bg-transparent border-0 cursor-pointer p-0 hover:scale-110 transition-transform text-gold"
+                        >
+                          <svg
+                            width="24"
+                            height="24"
+                            viewBox="0 0 24 24"
+                            fill={star <= userRating ? "currentColor" : "none"}
+                            stroke="currentColor"
+                            strokeWidth="1.5"
+                          >
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                          </svg>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Comment */}
+                  <div>
+                    <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-2">Your Review</label>
+                    <textarea
+                      value={userComment}
+                      onChange={(e) => setUserComment(e.target.value)}
+                      rows="4"
+                      placeholder="What did you think of the finish, quality, and material of this piece?..."
+                      className="w-full bg-background border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmittingReview}
+                    className="h-11 bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase border-0 cursor-pointer transition-colors duration-300 disabled:opacity-55 rounded-[2px]"
+                  >
+                    {isSubmittingReview ? "Submitting Review..." : "Submit Review"}
+                  </button>
+                </form>
+              ) : (
+                <div className="bg-surface border border-border p-4.5 text-center rounded-[2px]">
+                  <p className="font-body text-xs text-muted leading-relaxed m-0 mb-3.5">
+                    You must hold an active account to review this piece.
+                  </p>
+                  <Link to="/login" className="no-underline">
+                    <span className="px-5 py-2.5 bg-ink text-background hover:bg-bronze font-body font-medium text-[0.62rem] tracking-widest uppercase transition-colors duration-200 block rounded-[2px]">
+                      Log In to Write Review
+                    </span>
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Column: Customer Comments list */}
+          <div className="lg:col-span-2 border-t lg:border-t-0 lg:border-l border-border pt-10 lg:pt-0 lg:pl-12">
+            <h3 className="font-display font-light text-2xl text-ink mb-6">
+              Customer Experiences
+            </h3>
+
+            {reviewsLoading ? (
+              <div className="font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+                Loading Reviews...
+              </div>
+            ) : reviews.length === 0 ? (
+              <div className="bg-surface border border-border/60 py-12 px-6 text-center rounded-[2px] italic font-body text-xs text-muted">
+                No reviews yet. Be the first to share your thoughts on this designer piece!
+              </div>
+            ) : (
+              <div className="flex flex-col gap-6.5 max-h-[550px] overflow-y-auto pr-2">
+                {reviews.map((rev) => (
+                  <div key={rev._id} className="border-b border-border/50 pb-5 last:border-0 last:pb-0 animate-fadeIn">
+                    <div className="flex items-center justify-between gap-4 mb-2.5">
+                      <span className="font-body font-medium text-xs text-ink">
+                        {rev.name}
+                      </span>
+                      <span className="font-body text-[0.68rem] text-muted font-light">
+                        {new Date(rev.createdAt).toLocaleDateString("en-US", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center text-gold gap-0.5 mb-2.5">
+                      {[...Array(5)].map((_, idx) => (
+                        <svg
+                          key={idx}
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill={idx < rev.rating ? "currentColor" : "none"}
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                        >
+                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                        </svg>
+                      ))}
+                    </div>
+
+                    <p className="font-body font-light text-xs leading-[1.8] text-muted m-0">
+                      {rev.comment}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>

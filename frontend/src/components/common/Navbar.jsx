@@ -4,6 +4,7 @@ import logoImg from "../../assets/logo1.png";
 import { useWishlist } from "../../context/WishlistContext";
 import { useCart } from "../../context/CartContext";
 import SearchOverlay from "../search/SearchOverlay";
+import { useAuth } from "../../context/AuthContext";
 
 const navLinks = [
   {
@@ -46,7 +47,8 @@ const navLinks = [
 
 const Navbar = () => {
   const { wishlist } = useWishlist();
-  const { cartCount } = useCart();
+  const { cartCount, setIsCartOpen } = useCart();
+  const { user } = useAuth();
   const [scrolled,   setScrolled]   = useState(false);
   const [menuOpen,   setMenuOpen]   = useState(false);
   const [activeMega, setActiveMega] = useState(null);
@@ -54,7 +56,9 @@ const Navbar = () => {
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();
 
-  const isSolid = scrolled || activeMega;
+  const isHomePage = location.pathname === "/";
+  const isSolid = scrolled || activeMega || !isHomePage;
+  const isNavbarDark = isHomePage;
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 50);
@@ -79,21 +83,31 @@ const Navbar = () => {
         onMouseLeave={() => setActiveMega(null)}
         className={`fixed top-0 left-0 right-0 z-50 h-[76px] flex items-center justify-between px-8 md:px-14 transition-all duration-500 ${
           isSolid
-            ? "bg-dark/95 backdrop-blur-md border-b border-gold/12"
-            : "bg-gradient-to-b from-black/45 to-transparent"
+            ? isNavbarDark
+              ? "bg-dark/95 backdrop-blur-md border-b border-gold/12 shadow-md"
+              : "bg-background/90 backdrop-blur-md border-b border-border shadow-sm"
+            : "bg-gradient-to-b from-black/60 to-transparent"
         }`}
       >
         <Link to="/" className="flex items-center gap-3 no-underline group shrink-0">
           <img
             src={logoImg}
             alt="Novella"
-            className="w-10 h-10 object-contain [filter:invert(1)_sepia(1)_saturate(1.5)_hue-rotate(5deg)_brightness(0.9)]"
+            className={`w-10 h-10 object-contain transition-all duration-300 ${
+              isNavbarDark
+                ? "[filter:invert(1)_sepia(1)_saturate(1.5)_hue-rotate(5deg)_brightness(0.9)]"
+                : "[filter:contrast(1.1)_brightness(0.95)]"
+            }`}
           />
           <div className="flex flex-col leading-none">
-            <span className="font-display font-semibold text-[1.05rem] text-white tracking-[0.25em] uppercase transition-colors duration-300 group-hover:text-gold">
+            <span className={`font-display font-semibold text-[1.05rem] tracking-[0.25em] uppercase transition-colors duration-300 ${
+              isNavbarDark ? "text-white group-hover:text-gold" : "text-ink group-hover:text-bronze"
+            }`}>
               Novella
             </span>
-            <span className="font-body font-light text-[0.42rem] text-gold/50 tracking-[0.35em] uppercase mt-[2px]">
+            <span className={`font-body font-light text-[0.42rem] tracking-[0.35em] uppercase mt-[2px] ${
+              isNavbarDark ? "text-gold/50" : "text-bronze/70"
+            }`}>
               Home &amp; Décor
             </span>
           </div>
@@ -111,15 +125,19 @@ const Navbar = () => {
               >
                 <Link
                   to={link.to}
-                  className={`no-underline flex items-center gap-1.5 font-body font-normal text-[0.68rem] tracking-[0.2em] uppercase transition-colors duration-300 hover:text-white/85 ${
-                    isActive || isOpen ? "text-gold" : "text-white/50"
+                  className={`no-underline flex items-center gap-1.5 font-body font-normal text-[0.68rem] tracking-[0.2em] uppercase transition-colors duration-300 ${
+                    isNavbarDark
+                      ? `hover:text-white/85 ${isActive || isOpen ? "text-gold" : "text-white/50"}`
+                      : `hover:text-ink/90 ${isActive || isOpen ? "text-bronze font-medium" : "text-ink/60"}`
                   }`}
                 >
                   {link.label}
                   {link.mega && (
                     <svg
                       width="8" height="5" viewBox="0 0 10 6" fill="none"
-                      className={`text-gold/50 transition-transform duration-300 ${isOpen ? "rotate-180" : ""}`}
+                      className={`transition-transform duration-300 ${
+                        isNavbarDark ? "text-gold/50" : "text-bronze/60"
+                      } ${isOpen ? "rotate-180" : ""}`}
                     >
                       <path d="M1 1L5 5L9 1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
@@ -127,7 +145,9 @@ const Navbar = () => {
                 </Link>
 
                 {isActive && (
-                  <span className="absolute -bottom-[10px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full bg-gold" />
+                  <span className={`absolute -bottom-[10px] left-1/2 -translate-x-1/2 w-[3px] h-[3px] rounded-full ${
+                    isNavbarDark ? "bg-gold" : "bg-bronze"
+                  }`} />
                 )}
               </li>
             );
@@ -138,7 +158,9 @@ const Navbar = () => {
           <button
             aria-label="Search"
             onClick={() => setSearchOpen(true)}
-            className="text-white/55 hover:text-gold transition-colors duration-300 bg-transparent border-0 cursor-pointer p-1 flex items-center"
+            className={`transition-colors duration-300 bg-transparent border-0 cursor-pointer p-1 flex items-center ${
+              isNavbarDark ? "text-white/55 hover:text-gold" : "text-ink/65 hover:text-bronze"
+            }`}
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
               <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -148,30 +170,48 @@ const Navbar = () => {
           <Link
             to="/wishlist"
             aria-label="Wishlist"
-            className="relative text-white/55 hover:text-gold transition-colors duration-300 p-1 flex items-center no-underline"
+            className={`relative transition-colors duration-300 p-1 flex items-center no-underline ${
+              isNavbarDark ? "text-white/55 hover:text-gold" : "text-ink/65 hover:text-bronze"
+            }`}
           >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
             {wishlist.length > 0 && (
-              <span className="absolute -top-1 -right-1 bg-gold text-dark-deep font-body text-[0.55rem] font-bold w-[14px] h-[14px] rounded-full flex items-center justify-center">
+              <span className={`absolute -top-1 -right-1 font-body text-[0.55rem] font-bold w-[14px] h-[14px] rounded-full flex items-center justify-center ${
+                isNavbarDark ? "bg-gold text-dark-deep" : "bg-bronze text-background"
+              }`}>
                 {wishlist.length}
               </span>
             )}
           </Link>
 
-          <Link to="/cart" aria-label="Cart" className="relative text-white/55 hover:text-gold transition-colors duration-300 p-1 flex items-center no-underline">
+          <button
+            onClick={() => setIsCartOpen(true)}
+            aria-label="Cart"
+            className={`relative transition-colors duration-300 p-1 flex items-center no-underline bg-transparent border-0 cursor-pointer ${
+              isNavbarDark ? "text-white/55 hover:text-gold" : "text-ink/65 hover:text-bronze"
+            }`}
+          >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
               <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
               <line x1="3" y1="6" x2="21" y2="6" />
               <path d="M16 10a4 4 0 01-8 0" />
             </svg>
-            <span className="absolute -top-1 -right-1 bg-gold text-dark-deep font-body text-[0.55rem] font-bold w-[14px] h-[14px] rounded-full flex items-center justify-center">
+            <span className={`absolute -top-1 -right-1 font-body text-[0.55rem] font-bold w-[14px] h-[14px] rounded-full flex items-center justify-center ${
+              isNavbarDark ? "bg-gold text-dark-deep" : "bg-bronze text-background"
+            }`}>
               {cartCount}
             </span>
-          </Link>
+          </button>
 
-          <Link to="/login" aria-label="Account" className="hidden md:flex text-white/55 hover:text-gold transition-colors duration-300 p-1 items-center no-underline">
+          <Link
+            to={user ? "/profile" : "/login"}
+            aria-label={user ? "Profile" : "Account"}
+            className={`hidden md:flex transition-colors duration-300 p-1 items-center no-underline ${
+              isNavbarDark ? "text-white/55 hover:text-gold" : "text-ink/65 hover:text-bronze"
+            }`}
+          >
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
               <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
               <circle cx="12" cy="7" r="4" />
@@ -183,9 +223,15 @@ const Navbar = () => {
             onClick={() => setMenuOpen(o => !o)}
             className="md:hidden flex flex-col gap-[5px] bg-transparent border-0 cursor-pointer p-1 ml-1"
           >
-            <span className={`block w-5 h-px bg-white/80 transition-all duration-300 origin-center ${menuOpen ? "rotate-45 translate-y-[6px]" : ""}`} />
-            <span className={`block w-5 h-px bg-white/80 transition-all duration-300 ${menuOpen ? "opacity-0" : "opacity-100"}`} />
-            <span className={`block w-5 h-px bg-white/80 transition-all duration-300 origin-center ${menuOpen ? "-rotate-45 -translate-y-[6px]" : ""}`} />
+            <span className={`block w-5 h-px transition-all duration-300 origin-center ${
+              isNavbarDark ? "bg-white/80" : "bg-ink/80"
+            } ${menuOpen ? "rotate-45 translate-y-[6px]" : ""}`} />
+            <span className={`block w-5 h-px transition-all duration-300 ${
+              isNavbarDark ? "bg-white/80" : "bg-ink/80"
+            } ${menuOpen ? "opacity-0" : "opacity-100"}`} />
+            <span className={`block w-5 h-px transition-all duration-300 origin-center ${
+              isNavbarDark ? "bg-white/80" : "bg-ink/80"
+            } ${menuOpen ? "-rotate-45 -translate-y-[6px]" : ""}`} />
           </button>
         </div>
       </nav>
@@ -327,8 +373,8 @@ const Navbar = () => {
         ))}
 
         <div className="flex gap-6 mt-8 flex-wrap">
-          <Link to="/login" className="no-underline font-body font-normal text-[0.65rem] tracking-[0.22em] uppercase text-white/50">
-            Account
+          <Link to={user ? "/profile" : "/login"} className="no-underline font-body font-normal text-[0.65rem] tracking-[0.22em] uppercase text-white/50">
+            {user ? "Profile" : "Account"}
           </Link>
           <Link to="/wishlist" className="no-underline font-body font-normal text-[0.65rem] tracking-[0.22em] uppercase text-white/50">
             Wishlist ({wishlist.length})

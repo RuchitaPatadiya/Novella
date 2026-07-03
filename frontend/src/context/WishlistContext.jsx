@@ -1,22 +1,42 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { useAuth } from "./AuthContext";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const WishlistContext = createContext(null);
 
 export const WishlistProvider = ({ children }) => {
-  const [wishlist, setWishlist] = useState(() => {
-    try {
-      const saved = localStorage.getItem("novella_wishlist");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [wishlist, setWishlist] = useState([]);
 
+  // Load user-specific wishlist when user shifts
   useEffect(() => {
-    localStorage.setItem("novella_wishlist", JSON.stringify(wishlist));
-  }, [wishlist]);
+    if (user) {
+      try {
+        const saved = localStorage.getItem(`novella_wishlist_${user.id}`);
+        setWishlist(saved ? JSON.parse(saved) : []);
+      } catch {
+        setWishlist([]);
+      }
+    } else {
+      setWishlist([]);
+    }
+  }, [user]);
+
+  // Sync wishlist to localStorage
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem(`novella_wishlist_${user.id}`, JSON.stringify(wishlist));
+    }
+  }, [wishlist, user]);
 
   const toggleWishlist = (id) => {
+    if (!user) {
+      alert("Please sign in to add items to your wishlist.");
+      navigate("/login", { state: { from: location } });
+      return;
+    }
     setWishlist((prev) => {
       if (prev.includes(id)) {
         return prev.filter((item) => item !== id);

@@ -3,22 +3,22 @@ import { Link } from "react-router-dom";
 const featuredProducts = [
   {
     id: 1,
-    name: "Arco Floor Lamp",
-    price: "₹4,200",
+    name: "Nouveau Plaster Arc Pendant",
+    price: "₹9,800",
     image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=400&q=80",
-    to: "/product/1",
-  },
-  {
-    id: 2,
-    name: "Linen Cloud Sofa",
-    price: "₹38,000",
-    image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&q=80",
     to: "/product/2",
   },
   {
+    id: 2,
+    name: "Atelier Curved Bouclé Sofa",
+    price: "₹68,000",
+    image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?q=80&w=687&auto=format&fit=crop",
+    to: "/product/1",
+  },
+  {
     id: 3,
-    name: "Boucle Accent Chair",
-    price: "₹15,500",
+    name: "Pillar Travertine Coffee Table",
+    price: "₹32,000",
     image: "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400&q=80",
     to: "/product/3",
   },

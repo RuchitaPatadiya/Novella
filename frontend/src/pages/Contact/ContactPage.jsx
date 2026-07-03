@@ -1,10 +1,10 @@
 import React from 'react'
 import { Link } from 'react-router-dom'
-import ContactHero from '../components/contact/ContactHero'
-import QuickHelpCards from '../components/contact/QuickHelpCards'
-import ContactForm from '../components/contact/ContactForm'
-import StudioVisitBanner from '../components/contact/StudioVisitBanner'
-import FAQStrip from '../components/contact/FaqStrip'
+import ContactHero from '../../components/contact/ContactHero'
+import QuickHelpCards from '../../components/contact/QuickHelpCards'
+import ContactForm from '../../components/contact/ContactForm'
+import StudioVisitBanner from '../../components/contact/StudioVisitBanner'
+import FAQStrip from '../../components/contact/FaqStrip'
 
 const ContactPage = () => {
   return (

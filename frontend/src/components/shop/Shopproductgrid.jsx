@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useWishlist } from "../../context/WishlistContext";
+import { useCart } from "../../context/CartContext";
 
 const badgeClass = {
   Bestseller: "bg-ink text-gold",
@@ -28,6 +29,7 @@ const StarRow = ({ rating, reviews }) => (
 
 const ProductCard = ({ p }) => {
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const { addToCart } = useCart();
   const wished = isInWishlist(p.id);
   const [added,   setAdded]   = useState(false);
   const [hovered, setHovered] = useState(false);
@@ -68,6 +70,7 @@ const ProductCard = ({ p }) => {
           <button
             onClick={(e) => {
               e.preventDefault();
+              addToCart(p.id, 1);
               setAdded(true);
               setTimeout(() => setAdded(false), 1800);
             }}

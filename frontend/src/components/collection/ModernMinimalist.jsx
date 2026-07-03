@@ -3,7 +3,9 @@ import ShopProductGrid from "../shop/Shopproductgrid";
 
 const ModernMinimalist = () => {
   const collectionIds = [1, 2, 3, 6, 12]; // Arco Lamp, Cloud Sofa, Travertine Table, Ceramic Vases, Abstract Canvas
-  const filteredProducts = products.filter((p) => collectionIds.includes(p.id));
+  const filteredProducts = products.filter(
+    (p) => collectionIds.includes(p.id) || (p.collections && p.collections.includes("modern-minimalist"))
+  );
 
   return (
     <div className="bg-background">

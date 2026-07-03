@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { useCart } from "../../context/CartContext";
+import { useWishlist } from "../../context/WishlistContext";
 
 const products = [
   {
@@ -100,11 +102,14 @@ const StarRating = ({ rating }) => (
 );
 
 const ProductCard = ({ product }) => {
-  const [wishlisted, setWishlisted]   = useState(false);
+  const { toggleWishlist, isInWishlist } = useWishlist();
+  const { addToCart } = useCart();
+  const wishlisted = isInWishlist(product.id);
   const [addedToCart, setAddedToCart] = useState(false);
 
   const handleCart = (e) => {
     e.preventDefault();
+    addToCart(product.id, 1);
     setAddedToCart(true);
     setTimeout(() => setAddedToCart(false), 1800);
   };
@@ -138,7 +143,7 @@ const ProductCard = ({ product }) => {
 
         {/* Wishlist */}
         <button
-          onClick={(e) => { e.preventDefault(); setWishlisted((w) => !w); }}
+          onClick={(e) => { e.preventDefault(); toggleWishlist(product.id); }}
           className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center transition-all duration-200"
           style={{
             background: wishlisted ? GOLD : "rgba(250,247,242,0.9)",

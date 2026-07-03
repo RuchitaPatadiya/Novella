@@ -3,7 +3,9 @@ import ShopProductGrid from "../shop/Shopproductgrid";
 
 const LuxuryLiving = () => {
   const collectionIds = [2, 4, 8, 10, 11]; // Cloud Sofa, Boucle Accent Chair, Marble Pendant, Brass Sconce, Oakwood Table
-  const filteredProducts = products.filter((p) => collectionIds.includes(p.id));
+  const filteredProducts = products.filter(
+    (p) => collectionIds.includes(p.id) || (p.collections && p.collections.includes("luxury-living"))
+  );
 
   return (
     <div className="bg-background">

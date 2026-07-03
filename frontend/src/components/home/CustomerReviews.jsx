@@ -3,27 +3,27 @@ import { useRef } from "react";
 const reviews = [
   {
     id: 1,
-    quote: "The Arco lamp completely changed our living room. It's the first thing every guest notices.",
+    quote: "The plaster arc pendant completely changed our dining room. It is the first thing every guest notices.",
     name: "Priya M.",
     city: "Mumbai",
     rating: 5,
-    product: "Arco Floor Lamp",
+    product: "Nouveau Plaster Arc Pendant",
   },
   {
     id: 2,
-    quote: "Finally found a sofa that feels luxurious but livable. The linen fabric is even better in person.",
+    quote: "Finally found a sofa that feels luxurious but livable. The Belgian bouclé fabric is even better in person.",
     name: "Arjun K.",
     city: "Bangalore",
     rating: 5,
-    product: "Linen Cloud Sofa",
+    product: "Atelier Curved Bouclé Sofa",
   },
   {
     id: 3,
-    quote: "Ordered the entire bedroom edit — every piece arrived beautifully packed. Worth every rupee.",
+    quote: "Ordered the alabaster sconce — it arrived beautifully packed. Worth every single rupee.",
     name: "Sneha R.",
     city: "Delhi",
     rating: 5,
-    product: "Bedroom Collection",
+    product: "Alabaster Eclipse Sconce",
   },
 ];
 

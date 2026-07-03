@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
 
 const featuredProducts = [
-  { id: 1, name: "Arco Floor Lamp",      price: "₹4,200",  to: "/shop?category=lighting" },
-  { id: 2, name: "Linen Cloud Sofa",     price: "₹38,000", to: "/shop?category=furniture" },
-  { id: 3, name: "Travertine Table",     price: "₹8,900",  to: "/shop?category=furniture" },
-  { id: 4, name: "Boucle Accent Chair",  price: "₹15,500", to: "/shop?category=furniture" },
+  { id: 1, name: "Nouveau Plaster Arc Pendant",   price: "₹9,800",  to: "/product/2" },
+  { id: 2, name: "Atelier Curved Bouclé Sofa",    price: "₹68,000", to: "/product/1" },
+  { id: 3, name: "Pillar Travertine Coffee Table", price: "₹32,000", to: "/product/3" },
+  { id: 4, name: "Asymmetrical Organic Mirror",   price: "₹14,500", to: "/product/5" },
 ];
 
 const stats = [
@@ -97,23 +97,23 @@ export default function FeaturedSpace() {
 
           <div className="absolute bottom-8 right-8 w-[200px] p-4 flex flex-col gap-3 bg-background/95 backdrop-blur-sm border border-border">
             <img
-              src="https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=300&q=80"
-              alt="Linen Cloud Sofa"
+              src="https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
+              alt="Atelier Curved Bouclé Sofa"
               className="w-full h-28 object-cover border border-border"
             />
             <div>
               <p className="font-body font-normal text-[0.5rem] tracking-[0.28em] uppercase text-muted m-0 mb-1">
                 Spotlight Piece
               </p>
-              <p className="font-display font-medium text-[0.95rem] text-ink m-0 mb-0.5 leading-tight">
-                Linen Cloud Sofa
+              <p className="font-display font-medium text-[0.92rem] text-ink m-0 mb-0.5 leading-tight">
+                Atelier Curved Bouclé Sofa
               </p>
               <p className="font-display font-light text-[0.85rem] text-bronze m-0">
-                ₹38,000
+                ₹68,000
               </p>
             </div>
             <Link
-              to="/shop?category=furniture"
+              to="/product/1"
               className="no-underline w-full text-center font-body font-medium text-[0.55rem] tracking-[0.2em] uppercase text-cream-muted bg-ink py-2 transition-colors duration-200 hover:bg-bronze"
             >
               View Product

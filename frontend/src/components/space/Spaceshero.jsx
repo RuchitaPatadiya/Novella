@@ -15,16 +15,16 @@ export default function SpacesHero() {
       <div className="relative z-10 text-center px-6 max-w-3xl">
 
         <div className="flex items-center justify-center gap-3 mb-5 translate-y-3">
-          <span className="block w-7 h-px bg-gold" />
-          <span className="font-body font-light text-[0.57rem] tracking-[0.45em] uppercase text-gold">
+          <span className="block w-7 h-px bg-bronze" />
+          <span className="font-body font-light text-[0.57rem] tracking-[0.45em] uppercase text-bronze">
             Design Every Corner
           </span>
-          <span className="block w-7 h-px bg-gold" />
+          <span className="block w-7 h-px bg-bronze" />
         </div>
 
         <h1 className="font-display font-light text-[clamp(2.8rem,6.5vw,5.5rem)] text-cream m-0 leading-[1.05] tracking-[-0.01em]">
           Your Home,{" "}
-          <em className="text-gold font-medium italic">
+          <em className="text-bronze font-medium italic">
             Your Story
           </em>
         </h1>
@@ -37,7 +37,7 @@ export default function SpacesHero() {
       <div className="absolute bottom-5 right-10 hidden md:flex flex-col items-center gap-2 opacity-40">
         <div className="w-px h-10 bg-cream-muted/20 relative overflow-hidden">
           <div
-            className="absolute top-0 left-0 w-full h-[45%] bg-gold"
+            className="absolute top-0 left-0 w-full h-[45%] bg-bronze"
             style={{ animation: "scrollDrop 2s ease-in-out infinite" }}
           />
         </div>

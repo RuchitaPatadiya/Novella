@@ -2,7 +2,9 @@ import { products } from "../../utils/mockData";
 import ShopProductGrid from "../shop/Shopproductgrid";
 
 const BestSellers = () => {
-  const filteredProducts = products.filter((p) => p.badge === "Bestseller");
+  const filteredProducts = products.filter(
+    (p) => p.badge === "Bestseller" || (p.collections && p.collections.includes("best-sellers"))
+  );
 
   return (
     <div className="bg-background">

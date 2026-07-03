@@ -33,8 +33,8 @@ const HeroSection = () => {
       />
 
       {/* Bottom gradient */}
-      <div className="absolute inset-0 bg-gradient-to-t from-dark/85 via-dark/35 to-transparent" />
-      {/* Left gradient */}
+      {/* <div className="absolute inset-0 bg-gradient-to-t from-dark/85 via-dark/35 to-transparent" />
+      Left gradient */}
       <div className="absolute inset-0 bg-gradient-to-r from-dark/50 to-transparent" />
 
       {/* Content */}

@@ -1,23 +1,44 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { products } from "../utils/mockData";
+import { useAuth } from "./AuthContext";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const CartContext = createContext(null);
 
 export const CartProvider = ({ children }) => {
-  const [cart, setCart] = useState(() => {
-    try {
-      const saved = localStorage.getItem("novella_cart");
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [cart, setCart] = useState([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
+  // Load user-specific cart when user shifts
   useEffect(() => {
-    localStorage.setItem("novella_cart", JSON.stringify(cart));
-  }, [cart]);
+    if (user) {
+      try {
+        const saved = localStorage.getItem(`novella_cart_${user.id}`);
+        setCart(saved ? JSON.parse(saved) : []);
+      } catch {
+        setCart([]);
+      }
+    } else {
+      setCart([]);
+    }
+  }, [user]);
+
+  // Sync cart to localStorage
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem(`novella_cart_${user.id}`, JSON.stringify(cart));
+    }
+  }, [cart, user]);
 
   const addToCart = (productId, quantity = 1, color = null, size = null) => {
+    if (!user) {
+      alert("Please sign in to add items to your cart.");
+      navigate("/login", { state: { from: location } });
+      return;
+    }
     setCart((prev) => {
       // Check if product with same options already exists
       const existingIdx = prev.findIndex(
@@ -35,6 +56,7 @@ export const CartProvider = ({ children }) => {
         return [...prev, { id: productId, quantity, color, size }];
       }
     });
+    setIsCartOpen(true);
   };
 
   const removeFromCart = (productId, color = null, size = null) => {
@@ -82,6 +104,8 @@ export const CartProvider = ({ children }) => {
         clearCart,
         cartCount,
         cartSubtotal,
+        isCartOpen,
+        setIsCartOpen,
       }}
     >
       {children}

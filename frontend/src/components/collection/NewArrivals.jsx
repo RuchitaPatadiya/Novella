@@ -2,7 +2,9 @@ import { products } from "../../utils/mockData";
 import ShopProductGrid from "../shop/Shopproductgrid";
 
 const NewArrivals = () => {
-  const filteredProducts = products.filter((p) => p.badge === "New");
+  const filteredProducts = products.filter(
+    (p) => p.badge === "New" || (p.collections && p.collections.includes("new-arrivals"))
+  );
 
   return (
     <div className="bg-background">

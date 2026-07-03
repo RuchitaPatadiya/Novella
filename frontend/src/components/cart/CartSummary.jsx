@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useCart } from "../../context/CartContext";
+import { useNavigate } from "react-router-dom";
 
 const CartSummary = () => {
   const { cartSubtotal } = useCart();
+  const navigate = useNavigate();
   const [promoCode, setPromoCode] = useState("");
   const [discountPercent, setDiscountPercent] = useState(0);
   const [errorMsg, setErrorMsg] = useState("");
@@ -100,7 +102,7 @@ const CartSummary = () => {
 
       {/* Checkout CTA */}
       <button
-        onClick={() => alert("Checkout flow is simulated! Thank you for shopping with Novella.")}
+        onClick={() => navigate("/checkout", { state: { discountPercent } })}
         className="w-full h-12 bg-bronze text-background font-body font-medium text-xs tracking-widest uppercase hover:brightness-110 transition-all duration-200 cursor-pointer border-0 rounded-[2px] mt-2"
       >
         Proceed to Checkout

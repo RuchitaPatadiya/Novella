@@ -1,14 +1,23 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
-import { products as allProducts } from "../../utils/mockData";
 import { useWishlist } from "../../context/WishlistContext";
-
-const products = allProducts.slice(0, 5);
+import { useProducts } from "../../context/ProductContext";
 
 const BestSellers = () => {
   const { toggleWishlist, isInWishlist } = useWishlist();
+  const { products: allProducts, loading } = useProducts();
 
   const scrollRef = useRef(null);
+
+  if (loading) {
+    return null;
+  }
+
+  // Filter items matching Bestseller tag, fallback to first 5 products
+  const bestSellersList = allProducts.filter(
+    (p) => p.badge === "Bestseller" || (p.collections && p.collections.includes("best-sellers"))
+  );
+  const products = bestSellersList.length > 0 ? bestSellersList.slice(0, 6) : allProducts.slice(0, 5);
 
   const scroll = (dir) =>
     scrollRef.current?.scrollBy({ left: dir === "left" ? -340 : 340, behavior: "smooth" });

@@ -29,22 +29,22 @@ export default function ShopBySpace() {
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-10">
           <div>
             <div className="flex items-center gap-2.5 mb-3">
-              <span className="block w-5 h-px bg-gold" />
-              <span className="font-body font-normal text-[0.55rem] tracking-[0.38em] uppercase text-gold">
+              <span className="block w-5 h-px bg-bronze" />
+              <span className="font-body font-normal text-[0.55rem] tracking-[0.38em] uppercase text-bronze">
                 Design by Room
               </span>
             </div>
             <h2 className="font-display font-light text-[clamp(1.8rem,3.5vw,2.8rem)] text-ink m-0 leading-[1.1]">
               Shop by{" "}
-              <em className="text-gold font-medium italic">Space</em>
+              <em className="text-bronze font-medium italic">Space</em>
             </h2>
           </div>
           <Link
             to="/spaces"
-            className="no-underline flex items-center gap-2 font-body font-normal text-[0.65rem] tracking-[0.2em] uppercase text-muted hover:text-gold transition-colors duration-200 self-start md:self-auto"
+            className="no-underline flex items-center gap-2 font-body font-normal text-[0.65rem] tracking-[0.2em] uppercase text-muted hover:text-bronze transition-colors duration-200 self-start md:self-auto"
           >
             Explore All Spaces
-            <svg width="14" height="6" viewBox="0 0 18 8" fill="none" className="text-gold">
+            <svg width="14" height="6" viewBox="0 0 18 8" fill="none" className="text-bronze">
               <path d="M0 4H16M13 1L16 4L13 7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
@@ -54,8 +54,8 @@ export default function ShopBySpace() {
           {spaces.map((space) => (
             <Link
               key={space.id}
-              to="/spaces"
-              className="group relative overflow-hidden h-[280px] md:h-[360px] no-underline"
+              to={`/spaces/${space.id}`}
+              className="group relative overflow-hidden h-[280px] md:h-[360px] no-underline border border-border/40"
             >
               <img
                 src={space.image}
@@ -65,8 +65,8 @@ export default function ShopBySpace() {
               <div className="absolute inset-0 bg-gradient-to-t from-dark-deep/90 via-dark/30 to-transparent" />
 
               <div className="absolute top-0 left-0 w-8 h-8 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <div className="absolute top-0 left-0 w-full h-px bg-gold" />
-                <div className="absolute top-0 left-0 h-full w-px bg-gold" />
+                <div className="absolute top-0 left-0 w-full h-px bg-bronze" />
+                <div className="absolute top-0 left-0 h-full w-px bg-bronze" />
               </div>
 
               <div className="absolute bottom-0 left-0 right-0 p-6">

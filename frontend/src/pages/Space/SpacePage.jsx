@@ -3,6 +3,7 @@ import SpacesHero from '../../components/space/Spaceshero'
 import ChooseYourSpace from '../../components/space/Chooseyourspace'
 import FeaturedSpace from '../../components/space/FeaturedSpace'
 import InspirationGallery from '../../components/space/InspirationGallery'
+import WabiSabiGuide from '../../components/space/WabiSabiGuide'
 import BrandStrip from '../../components/home/BrandStrip'
 
 const SpacePage = () => {
@@ -22,6 +23,7 @@ const SpacePage = () => {
       <ChooseYourSpace />
       <FeaturedSpace />
       <InspirationGallery />
+      <WabiSabiGuide />
       <BrandStrip />
     </div>
   )

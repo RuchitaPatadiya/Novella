@@ -1,3 +1,5 @@
+import React from "react";
+
 const categories = [
   { id: "all",               label: "All"               },
   { id: "furniture",         label: "Furniture"         },
@@ -5,6 +7,23 @@ const categories = [
   { id: "wall-decor",        label: "Wall Decor"        },
   { id: "textiles",          label: "Textiles"          },
   { id: "decor-accessories", label: "Decor Accessories" },
+];
+
+const spacesOptions = [
+  { id: "living-room", label: "Living Room" },
+  { id: "bedroom",     label: "Bedroom"     },
+  { id: "dining-room", label: "Dining Room" },
+  { id: "home-office", label: "Home Office" },
+  { id: "outdoor",     label: "Outdoor"     },
+];
+
+const collectionsOptions = [
+  { id: "modern-minimalist", label: "Modern Minimalist" },
+  { id: "luxury-living",     label: "Luxury Living"     },
+  { id: "scandinavian",      label: "Scandinavian"      },
+  { id: "boho-chic",         label: "Boho Chic"         },
+  { id: "new-arrivals",      label: "New Arrivals"      },
+  { id: "best-sellers",      label: "Best Sellers"      },
 ];
 
 export default function ShopFilterBar({
@@ -16,8 +35,28 @@ export default function ShopFilterBar({
   onFiltersToggle,
   priceRange,
   onPriceChange,
+  selectedSpaces = [],
+  onSpaceChange,
+  selectedCollections = [],
+  onCollectionChange,
   resultCount,
+  onClearAll,
 }) {
+  
+  const handleSpaceToggle = (spaceId) => {
+    const next = selectedSpaces.includes(spaceId)
+      ? selectedSpaces.filter((s) => s !== spaceId)
+      : [...selectedSpaces, spaceId];
+    onSpaceChange(next);
+  };
+
+  const handleCollectionToggle = (collId) => {
+    const next = selectedCollections.includes(collId)
+      ? selectedCollections.filter((c) => c !== collId)
+      : [...selectedCollections, collId];
+    onCollectionChange(next);
+  };
+
   return (
     <>
       {/* ── Filter + Sort bar ── */}
@@ -94,29 +133,84 @@ export default function ShopFilterBar({
         </div>
       </div>
 
-      {/* ── Price filter panel ── */}
+      {/* Expandable Advanced Filter Drawer */}
       {filtersOpen && (
-        <div className="px-6 py-5 bg-surface border border-border border-t-0 mb-8">
-          <p className="font-body font-normal text-[0.62rem] tracking-[0.18em] uppercase text-muted mb-4">
-            Price Range — ₹{priceRange[0].toLocaleString("en-IN")} to ₹{priceRange[1].toLocaleString("en-IN")}
-          </p>
-          <div className="flex items-center gap-4 max-w-md">
-            <input
-              type="range"
-              min={0}
-              max={60000}
-              step={500}
-              value={priceRange[1]}
-              onChange={e => onPriceChange([priceRange[0], Number(e.target.value)])}
-              className="flex-1 accent-bronze"
-            />
+        <div className="px-8 py-7 bg-surface border border-border border-t-0 mb-8 grid grid-cols-1 md:grid-cols-3 gap-8 animate-fadeIn">
+          
+          {/* Column 1: Spaces */}
+          <div>
+            <h4 className="font-body font-medium text-[0.68rem] tracking-wider uppercase text-ink mb-4 pb-1.5 border-b border-border/60">
+              Filter by Space
+            </h4>
+            <div className="flex flex-col gap-2.5">
+              {spacesOptions.map((opt) => (
+                <label 
+                  key={opt.id} 
+                  className="flex items-center gap-2.5 font-body text-xs text-muted hover:text-ink cursor-pointer select-none"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedSpaces.includes(opt.id)}
+                    onChange={() => handleSpaceToggle(opt.id)}
+                    className="accent-bronze"
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 2: Collections */}
+          <div>
+            <h4 className="font-body font-medium text-[0.68rem] tracking-wider uppercase text-ink mb-4 pb-1.5 border-b border-border/60">
+              Filter by Collection
+            </h4>
+            <div className="flex flex-col gap-2.5">
+              {collectionsOptions.map((opt) => (
+                <label 
+                  key={opt.id} 
+                  className="flex items-center gap-2.5 font-body text-xs text-muted hover:text-ink cursor-pointer select-none"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCollections.includes(opt.id)}
+                    onChange={() => handleCollectionToggle(opt.id)}
+                    className="accent-bronze"
+                  />
+                  <span>{opt.label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Column 3: Price Slider & Reset */}
+          <div>
+            <h4 className="font-body font-medium text-[0.68rem] tracking-wider uppercase text-ink mb-4 pb-1.5 border-b border-border/60">
+              Price Range
+            </h4>
+            <p className="font-body font-light text-[0.72rem] text-muted mb-4">
+              ₹{priceRange[0].toLocaleString("en-IN")} to ₹{priceRange[1].toLocaleString("en-IN")}
+            </p>
+            <div className="flex items-center gap-4 mb-6">
+              <input
+                type="range"
+                min={0}
+                max={80000}
+                step={1000}
+                value={priceRange[1]}
+                onChange={e => onPriceChange([priceRange[0], Number(e.target.value)])}
+                className="flex-1 accent-bronze"
+              />
+            </div>
+            
             <button
-              onClick={() => onPriceChange([0, 60000])}
-              className="font-body font-normal text-[0.58rem] tracking-[0.12em] uppercase text-muted bg-transparent border border-border px-3 py-1.5 cursor-pointer hover:border-bronze hover:text-bronze transition-colors duration-200"
+              onClick={onClearAll}
+              className="w-full font-body font-medium text-[0.62rem] tracking-[0.18em] uppercase text-ink bg-transparent border border-ink py-2.5 cursor-pointer hover:bg-ink hover:text-background transition-all duration-300 rounded-[2px]"
             >
-              Reset
+              Reset All Filters
             </button>
           </div>
+
         </div>
       )}
     </>

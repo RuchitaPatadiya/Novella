@@ -35,8 +35,10 @@ const SpaceDetailPage = () => {
     );
   }
 
-  // Filter products that match the productIds list for this space
-  const curatedProducts = products.filter((p) => space.productIds.includes(p.id));
+  // Filter products that match the productIds list for this space or belong to the spaceId dynamically
+  const curatedProducts = products.filter(
+    (p) => space.productIds.includes(p.id) || (p.spaces && p.spaces.includes(spaceId))
+  );
 
   const fadeUp = (delay) => ({
     opacity: visible ? 1 : 0,
