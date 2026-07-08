@@ -39,6 +39,12 @@ const productSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    stock: {
+      type: Number,
+      required: [true, "Product inventory stock is required"],
+      default: 10,
+      min: 0,
+    },
     images: {
       type: [String],
       required: [true, "Product must have at least one image URL"],
@@ -48,9 +54,8 @@ const productSchema = new mongoose.Schema(
       required: [true, "Product description is required"],
     },
     specifications: {
-      type: Map,
-      of: String,
-      default: {},
+      Dimensions: { type: String, default: "" },
+      Material: { type: String, default: "" },
     },
     careInstructions: {
       type: String,

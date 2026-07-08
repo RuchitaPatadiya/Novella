@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { categoriesData } from "../../utils/categoryData";
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import ShopProductGrid from "../../components/shop/Shopproductgrid";
 import BrandStrip from "../../components/home/BrandStrip";
+import { ProductCardSkeleton } from "../../components/common/Skeleton";
 
 const ShopCategoryPage = () => {
   const { categoryId } = useParams();
+  const { products, loading } = useProducts();
   const categoryInfo = categoriesData.find((c) => c.id === categoryId);
 
   // States for filter and sort
@@ -22,6 +24,7 @@ const ShopCategoryPage = () => {
     setFiltersOpen(false);
     setPriceRange([0, 60000]);
   }, [categoryId]);
+
 
   if (!categoryInfo) {
     return (
@@ -195,10 +198,18 @@ const ShopCategoryPage = () => {
         )}
 
         {/* Product Grid */}
-        <ShopProductGrid
-          products={filteredProducts}
-          onClearFilters={handleClearFilters}
-        />
+        {loading ? (
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-12">
+            {[...Array(8)].map((_, idx) => (
+              <ProductCardSkeleton key={idx} />
+            ))}
+          </div>
+        ) : (
+          <ShopProductGrid
+            products={filteredProducts}
+            onClearFilters={handleClearFilters}
+          />
+        )}
       </div>
 
       <BrandStrip />

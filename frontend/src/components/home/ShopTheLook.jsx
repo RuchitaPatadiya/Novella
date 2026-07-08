@@ -1,36 +1,29 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useProducts } from "../../context/ProductContext";
 
-const hotspots = [
+const hotspotsTemplate = [
   {
     id: 1,
-    name: "Linen Cloud Sofa",
-    price: "₹38,000",
-    to: "/shop?category=furniture",
+    productId: 1,
     top: "52%",
     left: "28%",
   },
   {
     id: 2,
-    name: "Arco Floor Lamp",
-    price: "₹4,200",
-    to: "/shop?category=lighting",
+    productId: 10,
     top: "28%",
     left: "68%",
   },
   {
     id: 3,
-    name: "Woven Jute Rug",
-    price: "₹9,200",
-    to: "/shop?category=textiles",
+    productId: 7,
     top: "78%",
     left: "48%",
   },
   {
     id: 4,
-    name: "Ceramic Vase Set",
-    price: "₹2,200",
-    to: "/shop?category=decor-accessories",
+    productId: 4,
     top: "42%",
     left: "52%",
   },
@@ -38,6 +31,17 @@ const hotspots = [
 
 export default function ShopTheLook() {
   const [active, setActive] = useState(null);
+  const { products } = useProducts();
+
+  const hotspots = hotspotsTemplate.map((spot) => {
+    const p = products.find((prod) => prod.id === spot.productId);
+    return {
+      ...spot,
+      name: p ? p.name : "Curated Piece",
+      price: p ? `₹${p.price.toLocaleString("en-IN")}` : "",
+      to: p ? `/product/${p.id}` : "/shop",
+    };
+  });
 
   return (
     <section className="bg-background py-16 md:py-20">

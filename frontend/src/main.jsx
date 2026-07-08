@@ -7,19 +7,25 @@ import { AuthProvider } from './context/AuthContext.jsx'
 import { ProductProvider } from './context/ProductContext.jsx'
 import './index.css'
 import App from './App.jsx'
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import ErrorBoundary from './components/common/ErrorBoundary.jsx';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <AuthProvider>
-        <ProductProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <App />
-            </CartProvider>
-          </WishlistProvider>
-        </ProductProvider>
-      </AuthProvider>
+      <GoogleOAuthProvider clientId="406149259822-ro7n6nfnjd0k6bopqdthf1m4pbokjkfj.apps.googleusercontent.com">
+        <AuthProvider>
+          <ProductProvider>
+            <WishlistProvider>
+              <CartProvider>
+                <ErrorBoundary>
+                  <App />
+                </ErrorBoundary>
+              </CartProvider>
+            </WishlistProvider>
+          </ProductProvider>
+        </AuthProvider>
+      </GoogleOAuthProvider>
     </BrowserRouter>
   </StrictMode>,
 )

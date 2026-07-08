@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import heroImage from "../../assets/hero7.jpg";
+import heroImage from "../../assets/hero10.avif";
 
 const HeroSection = () => {
   const [visible, setVisible] = useState(false);

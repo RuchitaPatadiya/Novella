@@ -65,6 +65,23 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Login with Google
+  const loginWithGoogle = async (credential) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await API.post("/auth/google", { credential });
+      setUser(res.data);
+      setLoading(false);
+      return res.data;
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Google Authentication failed.";
+      setError(errMsg);
+      setLoading(false);
+      throw new Error(errMsg);
+    }
+  };
+
   // Logout User
   const logout = async () => {
     setLoading(true);
@@ -104,6 +121,7 @@ export const AuthProvider = ({ children }) => {
         error,
         register,
         login,
+        loginWithGoogle,
         logout,
         updateProfile,
       }}

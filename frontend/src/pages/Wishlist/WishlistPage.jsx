@@ -1,10 +1,21 @@
 import { Link } from "react-router-dom";
 import { useWishlist } from "../../context/WishlistContext";
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import BrandStrip from "../../components/home/BrandStrip";
 
 const WishlistPage = () => {
   const { wishlist, toggleWishlist, clearWishlist } = useWishlist();
+  const { products, loading } = useProducts();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 pt-20">
+        <div className="font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+          Loading wishlist...
+        </div>
+      </div>
+    );
+  }
 
   // Get wishlisted products
   const wishlistedProducts = products.filter((p) => wishlist.includes(p.id));

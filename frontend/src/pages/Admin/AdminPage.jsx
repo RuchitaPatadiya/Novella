@@ -2,43 +2,126 @@ import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useProducts } from "../../context/ProductContext";
-import BrandStrip from "../../components/home/BrandStrip";
 import API from "../../services/api";
 
-
 const AdminPage = () => {
-  const { user, loading } = useAuth();
-  const { products, addProduct } = useProducts();
+  const { logout, user, loading } = useAuth();
+  const { products, addProduct, editProduct, deleteProduct } = useProducts();
   const navigate = useNavigate();
 
-  // Tab State: "orders" or "catalog"
-  const [activeTab, setActiveTab] = useState("orders");
+  // Navigation Panel State: "overview" | "orders" | "catalog" | "reviews" | "promotions"
+  const [activePanel, setActivePanel] = useState("overview");
 
-  // Orders table states
+  // Orders registry state
   const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("All");
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
 
-  // Add Product Form State
+  // Reviews moderation state
+  const [adminReviews, setAdminReviews] = useState([]);
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [reviewFilterStatus, setReviewFilterStatus] = useState("All");
+
+  // Promo code states
+  const [promos, setPromos] = useState([]);
+  const [promosLoading, setPromosLoading] = useState(true);
+  const [promoFormData, setPromoFormData] = useState({
+    code: "",
+    discountType: "percentage",
+    value: "",
+    minPurchase: "",
+    expiryDate: ""
+  });
+  const [promoFormError, setPromoFormError] = useState("");
+  const [promoFormSuccess, setPromoFormSuccess] = useState("");
+
+  // Product Form Modal State
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingProductId, setEditingProductId] = useState(null); // null if adding new, number ID if editing
   const [formData, setFormData] = useState({
     name: "",
     category: "furniture",
     price: "",
     originalPrice: "",
-    imageInput: "", // comma separated list
+    stock: 10,
+    images: [""],
     description: "",
-    dimSpec: "", // Dimensions spec
-    matSpec: "", // Material spec
+    dimSpec: "",
+    matSpec: "",
     careInstructions: "",
-    spaces: [], // array of selected spaces
-    collections: [], // array of selected collections
+    spaces: [],
+    collections: [],
   });
 
   const [formSuccess, setFormSuccess] = useState("");
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
-  // Route protection and dynamic order loading
+  // Editor preview tabs
+  const [descTab, setDescTab] = useState("write"); // write | preview
+  const [careTab, setCareTab] = useState("write"); // write | preview
+
+  // Fetch orders from database
+  const fetchOrders = async () => {
+    try {
+      setOrdersLoading(true);
+      const res = await API.get("/orders/admin");
+      const mappedDb = res.data.map(order => ({
+        id: order.orderId,
+        customer: order.shippingDetails?.name || (order.user?.name || "Customer"),
+        email: order.user?.email || "customer@example.com",
+        date: order.date,
+        total: order.total,
+        status: order.status,
+        items: order.items,
+        phone: order.shippingDetails?.phone || "Not specified",
+        address: order.shippingDetails?.address || "Not specified",
+        method: order.shippingDetails?.method || "standard",
+        products: order.products || [],
+        pricingBreakdown: order.pricingBreakdown || { subtotal: 0, discount: 0, shipping: 0, total: 0 },
+        paymentDetails: order.paymentDetails || { method: "razorpay" }
+      }));
+      setOrders(mappedDb);
+    } catch (err) {
+      console.error("Failed to load store orders:", err);
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  // Fetch reviews for admin moderation
+  const fetchReviews = async () => {
+    try {
+      setReviewsLoading(true);
+      const res = await API.get("/products/admin/reviews");
+      setAdminReviews(res.data);
+    } catch (err) {
+      console.error("Failed to load admin reviews:", err);
+      setAdminReviews([]);
+    } finally {
+      setReviewsLoading(false);
+    }
+  };
+
+  // Fetch promo codes
+  const fetchPromos = async () => {
+    try {
+      setPromosLoading(true);
+      const res = await API.get("/promos/admin");
+      setPromos(res.data);
+    } catch (err) {
+      console.error("Failed to load promo codes:", err);
+      setPromos([]);
+    } finally {
+      setPromosLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!loading) {
       if (!user) {
@@ -46,117 +129,286 @@ const AdminPage = () => {
       } else if (!user.isAdmin) {
         navigate("/profile");
       } else {
-        // Logged in as Admin! Fetch orders from DB
-        const fetchOrders = async () => {
-          try {
-            const res = await API.get("/orders/admin");
-            // Map database schema values to table UI columns
-            const mappedDb = res.data.map(order => ({
-              id: order.orderId,
-              customer: order.shippingDetails?.name || (order.user?.name || "Customer"),
-              email: order.user?.email || "customer@example.com",
-              date: order.date,
-              total: order.total,
-              status: order.status,
-              items: order.items
-            }));
-            setOrders(mappedDb);
-          } catch (err) {
-            console.error("Failed to load store orders:", err);
-            setOrders([]); // fallback
-          }
-        };
         fetchOrders();
+        fetchReviews();
+        fetchPromos();
       }
     }
   }, [user, loading, navigate]);
 
-  if (loading) {
-    return (
-      <div className="bg-background min-h-screen pt-32 flex items-center justify-center font-body text-[0.62rem] text-muted tracking-[0.2em] uppercase animate-pulse">
-        Verifying Atelier Authorization...
-      </div>
-    );
-  }
+  // Handle promo code deletion
+  const handleDeletePromo = async (promoId) => {
+    if (window.confirm("Are you sure you want to delete this promotion code?")) {
+      try {
+        await API.delete(`/promos/${promoId}`);
+        setPromos((prev) => prev.filter((p) => p._id !== promoId));
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to delete promo code.");
+      }
+    }
+  };
 
-  if (!user || !user.isAdmin) {
-    return null;
-  }
+  // Create promo code
+  const handlePromoSubmit = async (e) => {
+    e.preventDefault();
+    setPromoFormError("");
+    setPromoFormSuccess("");
 
-  // Handle order status changes locally and write back to database
+    if (!promoFormData.code || !promoFormData.value || !promoFormData.expiryDate) {
+      setPromoFormError("Code, discount value, and expiration date are required.");
+      return;
+    }
+
+    try {
+      const res = await API.post("/promos", {
+        code: promoFormData.code.toUpperCase(),
+        discountType: promoFormData.discountType,
+        value: Number(promoFormData.value),
+        minPurchase: promoFormData.minPurchase ? Number(promoFormData.minPurchase) : 0,
+        expiryDate: promoFormData.expiryDate
+      });
+
+      setPromos((prev) => [res.data, ...prev]);
+      setPromoFormSuccess(`Promo code "${res.data.code}" created successfully.`);
+      setPromoFormData({
+        code: "",
+        discountType: "percentage",
+        value: "",
+        minPurchase: "",
+        expiryDate: ""
+      });
+    } catch (err) {
+      setPromoFormError(err.response?.data?.message || "Failed to create promo code.");
+    }
+  };
+
+  // Handle Review approval
+  const handleApproveReview = async (reviewId) => {
+    try {
+      await API.put(`/products/reviews/${reviewId}/approve`);
+      setAdminReviews(prev =>
+        prev.map(rev => rev._id === reviewId ? { ...rev, isApproved: true } : rev)
+      );
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to approve review.");
+    }
+  };
+
+  // Handle Review deletion/rejection
+  const handleRejectReview = async (reviewId) => {
+    if (window.confirm("Are you sure you want to delete/reject this review?")) {
+      try {
+        await API.delete(`/products/reviews/${reviewId}`);
+        setAdminReviews(prev => prev.filter(rev => rev._id !== reviewId));
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to reject review.");
+      }
+    }
+  };
+
+  // Handle order status updates
   const handleStatusChange = async (orderId, newStatus) => {
     try {
       await API.put(`/orders/${orderId}/status`, { status: newStatus });
-
       setOrders((prev) =>
         prev.map((order) =>
           order.id === orderId ? { ...order, status: newStatus } : order
         )
       );
     } catch (err) {
-      console.error("Failed to update order status on database server:", err);
+      alert(err.response?.data?.message || "Failed to update order status.");
     }
   };
 
-  const filteredOrders = filterStatus === "All"
-    ? orders
-    : orders.filter((o) => o.status === filterStatus);
+  // Open form in edit mode
+  const openEditMode = (p) => {
+    setEditingProductId(p.id);
+    setFormData({
+      name: p.name || "",
+      category: p.category || "furniture",
+      price: p.price || "",
+      originalPrice: p.originalPrice || "",
+      stock: p.stock !== undefined ? p.stock : 10,
+      images: p.images && p.images.length > 0 ? [...p.images] : (p.image ? [p.image] : [""]),
+      description: p.description || "",
+      dimSpec: p.specifications?.Dimensions || "",
+      matSpec: p.specifications?.Material || "",
+      careInstructions: p.careInstructions || "",
+      spaces: p.spaces || [],
+      collections: p.collections || [],
+    });
+    setDescTab("write");
+    setCareTab("write");
+    setFormError("");
+    setFormSuccess("");
+    setIsFormOpen(true);
+  };
 
-  // Calculate dynamic stats
-  const totalSales = orders.reduce((acc, order) => {
-    const numericVal = parseInt(order.total.replace(/[^0-9]/g, ""), 10) || 0;
-    return acc + numericVal;
-  }, 0);
+  // Open form in create mode
+  const openCreateMode = () => {
+    setEditingProductId(null);
+    setFormData({
+      name: "",
+      category: "furniture",
+      price: "",
+      originalPrice: "",
+      stock: 10,
+      images: [""],
+      description: "",
+      dimSpec: "",
+      matSpec: "",
+      careInstructions: "",
+      spaces: [],
+      collections: [],
+    });
+    setDescTab("write");
+    setCareTab("write");
+    setFormError("");
+    setFormSuccess("");
+    setIsFormOpen(true);
+  };
 
-  const totalOrders = orders.length;
-  const catalogCount = products.length;
-
-  // Handle product form input
+  // Handle product form input updates
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handle checkboxes for spaces / collections
   const handleCheckboxChange = (field, itemValue) => {
     setFormData((prev) => {
-      const currentList = prev[field];
-      const updatedList = currentList.includes(itemValue)
-        ? currentList.filter((item) => item !== itemValue)
-        : [...currentList, itemValue];
-      return { ...prev, [field]: updatedList };
+      const list = prev[field] || [];
+      const updated = list.includes(itemValue)
+        ? list.filter((v) => v !== itemValue)
+        : [...list, itemValue];
+      return { ...prev, [field]: updated };
     });
   };
 
-  // Handle product submit
+  // Custom text editor helper functions (inserts HTML markdown)
+  const insertHTMLTag = (field, tag) => {
+    const textarea = document.getElementById(field);
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const selected = text.substring(start, end);
+
+    let replacement = "";
+    if (tag === "b") replacement = `<strong>${selected || "Bold Text"}</strong>`;
+    else if (tag === "i") replacement = `<em>${selected || "Italic Text"}</em>`;
+    else if (tag === "p") replacement = `<p>${selected || "New Paragraph text..."}</p>`;
+    else if (tag === "ul") replacement = `<ul>\n  <li>${selected || "List item"}</li>\n</ul>`;
+
+    const updatedText = text.substring(0, start) + replacement + text.substring(end);
+    setFormData((prev) => ({ ...prev, [field]: updatedText }));
+
+    // Refocus textarea
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + replacement.length, start + replacement.length);
+    }, 50);
+  };
+
+  // Image Drag-and-Drop file processing & backend uploads
+  const processImageFiles = async (files) => {
+    if (!files || files.length === 0) return;
+    setIsUploadingImage(true);
+    setFormError("");
+
+    const uploadedUrls = [];
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (!file.type.startsWith("image/")) {
+          setFormError("Only image files (JPEG, PNG, WEBP) are supported.");
+          continue;
+        }
+
+        const uploadPayload = new FormData();
+        uploadPayload.append("image", file);
+
+        const res = await API.post("/products/upload", uploadPayload, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        if (res.data?.url) {
+          uploadedUrls.push(res.data.url);
+        }
+      }
+
+      if (uploadedUrls.length > 0) {
+        setFormData((prev) => {
+          const baseImages = prev.images.filter(Boolean);
+          return { ...prev, images: [...baseImages, ...uploadedUrls] };
+        });
+        setFormSuccess(`Successfully uploaded and registered ${uploadedUrls.length} file(s)!`);
+        setTimeout(() => setFormSuccess(""), 3000);
+      }
+    } catch (err) {
+      console.error("Image upload failed:", err);
+      setFormError(err.response?.data?.message || "Failed to upload image file to store directory.");
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    processImageFiles(e.target.files);
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    processImageFiles(e.dataTransfer.files);
+  };
+
+  const removeUploadedImage = (indexToRemove) => {
+    setFormData((prev) => ({
+      ...prev,
+      images: prev.images.filter((_, idx) => idx !== indexToRemove)
+    }));
+  };
+
+  // Submit product creation or update
   const handleProductSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
     setFormSuccess("");
     setIsSubmitting(true);
 
-    // Validate inputs
     if (!formData.name || !formData.price || !formData.description) {
       setFormError("Product Name, Price, and Description are required fields.");
       setIsSubmitting(false);
       return;
     }
 
-    // Prepare images array
-    const imageList = formData.imageInput
-      ? formData.imageInput.split(",").map((url) => url.trim())
-      : ["https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1000&q=80"]; // fallback image
+    const imageList = formData.images
+      .map((url) => url.trim())
+      .filter(Boolean);
 
-    // Prepare specifications map
+    if (imageList.length === 0) {
+      imageList.push("https://images.unsplash.com/photo-1592078615290-033ee584e267?w=1000&q=80");
+    }
+
     const specsMap = {};
     if (formData.dimSpec) specsMap["Dimensions"] = formData.dimSpec;
     if (formData.matSpec) specsMap["Material"] = formData.matSpec;
 
-    const newProduct = {
+    const payload = {
       name: formData.name,
       category: formData.category,
       price: Number(formData.price),
       originalPrice: formData.originalPrice ? Number(formData.originalPrice) : null,
+      stock: formData.stock !== "" ? Number(formData.stock) : 10,
       images: imageList,
       description: formData.description,
       specifications: specsMap,
@@ -166,304 +418,844 @@ const AdminPage = () => {
     };
 
     try {
-      await addProduct(newProduct);
-      setFormSuccess("Artistic product added successfully to the live database catalog!");
-      // Reset form
-      setFormData({
-        name: "",
-        category: "furniture",
-        price: "",
-        originalPrice: "",
-        imageInput: "",
-        description: "",
-        dimSpec: "",
-        matSpec: "",
-        careInstructions: "",
-        spaces: [],
-        collections: [],
-      });
-      // Close form modal after 1.5 seconds
+      if (editingProductId) {
+        await editProduct(editingProductId, payload);
+        setFormSuccess("Product catalog entry modified successfully!");
+      } else {
+        await addProduct(payload);
+        setFormSuccess("New product catalog entry published successfully!");
+      }
+
       setTimeout(() => {
         setIsFormOpen(false);
         setFormSuccess("");
+        setEditingProductId(null);
       }, 1500);
     } catch (err) {
-      setFormError(err.message || "Failed to create product.");
+      setFormError(err.message || "Failed to commit product changes.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  return (
-    <div className="bg-background min-h-screen pt-[76px]">
-      
-      {/* Breadcrumbs Row */}
-      <div className="px-[clamp(1.5rem,5vw,4rem)] py-5 border-b border-border bg-background">
-        <div className="flex items-center gap-2 font-body text-[0.68rem] tracking-[0.18em] uppercase text-muted">
-          <Link to="/" className="hover:text-bronze transition-colors duration-200 no-underline text-current">
-            Home
-          </Link>
-          <span>/</span>
-          <span className="text-ink font-normal">Admin Registry</span>
-        </div>
+  const handleDeleteProductClick = async (productId) => {
+    if (window.confirm("Are you sure you want to permanently delete this product from the inventory?")) {
+      try {
+        await deleteProduct(productId);
+      } catch (err) {
+        alert(err.message || "Failed to delete product.");
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="bg-[#121212] min-h-screen text-cream flex flex-col items-center justify-center font-body text-xs tracking-[0.2em] uppercase animate-pulse">
+        <div className="w-8 h-8 border border-bronze border-t-transparent rounded-full animate-spin mb-4" />
+        Authenticating backoffice credentials...
       </div>
+    );
+  }
 
-      <div className="px-[clamp(1.5rem,5vw,4rem)] py-12 md:py-16 bg-background">
-        
-        {/* Header Block */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between border-b border-border pb-6 mb-10 gap-4">
-          <div>
-            <div className="flex items-center gap-2.5 mb-3">
-              <span className="block w-5 h-px bg-bronze" />
-              <span className="font-body font-normal text-[0.55rem] tracking-[0.38em] uppercase text-bronze">
-                Atelier Control Panel
-              </span>
-            </div>
-            <h1 className="font-display font-light text-[clamp(2.2rem,4vw,3.2rem)] text-ink m-0 leading-none">
-              Store <em className="text-bronze italic font-medium">Overview</em>
-            </h1>
+  if (!user || !user.isAdmin) {
+    return null;
+  }
+
+  // Calculate dynamic stats
+  const totalSalesVal = orders.reduce((acc, o) => {
+    if (o.status === "Cancelled" || o.status === "Returned") return acc;
+    const stringVal = String(o.total || "0");
+    const numericVal = parseInt(stringVal.replace(/[^0-9]/g, ""), 10) || 0;
+    return acc + numericVal;
+  }, 0);
+
+  const pendingShipments = orders.filter((o) => o.status === "Processing" || o.status === "Shipped").length;
+  const totalOrders = orders.length;
+  const catalogCount = products.length;
+
+  return (
+    <div className="bg-[#121212] text-[#F3EFE9] min-h-screen flex font-body">
+      
+      {/* 1. SIDEBAR CONTROLLER */}
+      <aside className="w-64 border-r border-[#2C2C2C] bg-[#161616] p-6 flex flex-col justify-between shrink-0">
+        <div className="space-y-8">
+          <div className="pb-4 border-b border-[#2C2C2C]">
+            <span className="font-display font-light text-2xl tracking-[0.1em] text-background uppercase block">
+              Novella
+            </span>
+            <span className="font-body text-[0.55rem] tracking-[0.25em] text-bronze uppercase block mt-1">
+              Atelier Backoffice
+            </span>
           </div>
 
-          {/* Tab buttons */}
-          <div className="flex border border-border bg-surface p-1 rounded-[3px]">
+          <nav className="flex flex-col gap-1.5">
             <button
-              onClick={() => setActiveTab("orders")}
-              className={`px-5 py-2 font-body text-[0.68rem] tracking-wider uppercase border-0 cursor-pointer transition-all duration-300 rounded-[2px] ${
-                activeTab === "orders"
-                  ? "bg-ink text-background font-medium"
-                  : "bg-transparent text-muted hover:text-ink"
+              onClick={() => setActivePanel("overview")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "overview"
+                  ? "bg-[#252525] text-background font-medium"
+                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
               }`}
             >
-              Orders
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Overview Dashboard
             </button>
+
             <button
-              onClick={() => setActiveTab("catalog")}
-              className={`px-5 py-2 font-body text-[0.68rem] tracking-wider uppercase border-0 cursor-pointer transition-all duration-300 rounded-[2px] ${
-                activeTab === "catalog"
-                  ? "bg-ink text-background font-medium"
-                  : "bg-transparent text-muted hover:text-ink"
+              onClick={() => setActivePanel("orders")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "orders"
+                  ? "bg-[#252525] text-background font-medium"
+                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
               }`}
             >
-              Catalog ({catalogCount})
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+              Orders ({orders.length})
             </button>
-          </div>
+
+            <button
+              onClick={() => setActivePanel("catalog")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "catalog"
+                  ? "bg-[#252525] text-background font-medium"
+                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
+              }`}
+            >
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.58 4 8 4s8-1.79 8-4M4 7c0-2.21 3.58-4 8-4s8 1.79 8 4m0 5c0 2.21-3.58 4-8 4s-8-1.79-8-4" />
+              </svg>
+              Catalog ({products.length})
+            </button>
+
+            <button
+              onClick={() => setActivePanel("reviews")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "reviews"
+                  ? "bg-[#252525] text-background font-medium"
+                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
+              }`}
+            >
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+              Reviews ({adminReviews.length})
+            </button>
+
+            <button
+              onClick={() => setActivePanel("promotions")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "promotions"
+                  ? "bg-[#252525] text-background font-medium"
+                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
+              }`}
+            >
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5a2 2 0 10-2 2h2zm0 8h.01M19 10a2 2 0 11-4 0V8h4v2zM5 10a2 2 0 104 0V8H5v2z" />
+              </svg>
+              Promotions ({promos.length})
+            </button>
+          </nav>
         </div>
 
-        {/* Stats Blocks */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-          <div className="bg-surface border border-border p-6 rounded-[2px] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-gold" />
-            <span className="font-body font-normal text-[0.58rem] tracking-[0.18em] uppercase text-muted block mb-1">
-              Total Revenue
-            </span>
-            <span className="font-display font-semibold text-2xl md:text-3xl text-ink">
-              ₹{totalSales.toLocaleString("en-IN")}
-            </span>
-          </div>
-
-          <div className="bg-surface border border-border p-6 rounded-[2px] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-bronze" />
-            <span className="font-body font-normal text-[0.58rem] tracking-[0.18em] uppercase text-muted block mb-1">
-              Orders Processed
-            </span>
-            <span className="font-display font-semibold text-2xl md:text-3xl text-ink">
-              {totalOrders}
-            </span>
-          </div>
-
-          <div className="bg-surface border border-border p-6 rounded-[2px] relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-[3px] bg-ink" />
-            <span className="font-body font-normal text-[0.58rem] tracking-[0.18em] uppercase text-muted block mb-1">
-              Catalog Items
-            </span>
-            <span className="font-display font-semibold text-2xl md:text-3xl text-ink">
-              {catalogCount}
-            </span>
-          </div>
+        {/* Footer controls */}
+        <div className="space-y-4">
+          <div className="h-px bg-[#2C2C2C]" />
+          <Link
+            to="/"
+            className="w-full text-center block font-body text-[0.62rem] tracking-[0.2em] uppercase text-bronze hover:text-background no-underline py-2 border border-bronze/40 hover:border-background transition-colors duration-200"
+          >
+            Return to Store
+          </Link>
+          <button
+            onClick={() => { logout(); navigate("/"); }}
+            className="w-full bg-[#1A1A1A] border-0 text-cream-muted hover:text-background py-2 text-[0.62rem] tracking-[0.2em] uppercase hover:bg-red-950/20 cursor-pointer transition-colors duration-200"
+          >
+            Sign Out
+          </button>
         </div>
+      </aside>
 
-        {/* TAB CONTENT: ORDERS */}
-        {activeTab === "orders" && (
-          <div className="bg-surface/40 border border-border p-6 sm:p-8 rounded-[3px] animate-fadeIn">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 pb-4 border-b border-border/50">
-              <h3 className="font-display font-light text-2xl text-ink m-0">
-                Customer Purchase Registry
-              </h3>
-              
-              <div className="flex items-center gap-3">
-                <span className="font-body text-xs text-muted font-light">Filter:</span>
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className="bg-background border border-border px-3.5 py-1.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
-                >
-                  <option value="All">All Statuses</option>
-                  <option value="Processing">Processing</option>
-                  <option value="Shipped">Shipped</option>
-                  <option value="Delivered">Delivered</option>
-                </select>
+      {/* 2. MAIN CONTENT WRAPPER */}
+      <main className="flex-1 overflow-y-auto flex flex-col relative text-ink bg-background">
+        <header className="px-8 py-5 border-b border-border bg-white flex justify-between items-center z-10 sticky top-0 shadow-xs">
+          <h2 className="font-display font-light text-xl text-ink m-0 uppercase tracking-widest">
+            {activePanel === "overview" && "Dashboard Overview"}
+            {activePanel === "orders" && "Customer Purchases"}
+            {activePanel === "catalog" && "Inventory Catalog"}
+            {activePanel === "reviews" && "Reviews Moderation"}
+            {activePanel === "promotions" && "Promotional Campaigns"}
+          </h2>
+          <span className="font-body text-[0.65rem] tracking-wider text-muted uppercase">
+            Logged in as Admin
+          </span>
+        </header>
+
+        <div className="p-8 max-w-6xl w-full mx-auto space-y-8 flex-grow">
+          
+          {/* STATS OVERVIEW PANEL */}
+          {activePanel === "overview" && (
+            <div className="space-y-8 animate-fadeIn">
+              {/* Stat cards */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="bg-white border border-border p-5 rounded-[2px]">
+                  <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Gross Valuation</span>
+                  <span className="font-display text-2xl text-ink block mt-1">₹{totalSalesVal.toLocaleString("en-IN")}</span>
+                </div>
+                <div className="bg-white border border-border p-5 rounded-[2px]">
+                  <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Total Transactions</span>
+                  <span className="font-display text-2xl text-ink block mt-1">{totalOrders}</span>
+                </div>
+                <div className="bg-white border border-border p-5 rounded-[2px]">
+                  <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Items in Catalog</span>
+                  <span className="font-display text-2xl text-ink block mt-1">{catalogCount}</span>
+                </div>
+                <div className="bg-white border border-border p-5 rounded-[2px]">
+                  <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Pending Shipments</span>
+                  <span className="font-display text-2xl text-ink block mt-1">{pendingShipments}</span>
+                </div>
+              </div>
+
+              {/* Quick Actions / Activity Info */}
+              <div className="bg-white border border-border p-6 rounded-[2px]">
+                <h4 className="font-display font-light text-base text-ink mb-4">Quick Operations</h4>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => { setActivePanel("catalog"); openCreateMode(); }}
+                    className="px-5 py-3 bg-ink hover:bg-bronze text-background font-body font-medium text-[0.65rem] tracking-wider uppercase border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                  >
+                    + Publish New Product
+                  </button>
+                  <button
+                    onClick={() => setActivePanel("orders")}
+                    className="px-5 py-3 bg-surface hover:bg-border text-ink font-body font-medium text-[0.65rem] tracking-wider uppercase border border-border/80 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                  >
+                    Manage Orders Registry
+                  </button>
+                </div>
               </div>
             </div>
+          )}
 
-            {/* Registry Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left font-body text-xs text-ink">
-                <thead>
-                  <tr className="border-b border-border text-[0.65rem] tracking-[0.15em] uppercase text-muted font-normal">
-                    <th className="pb-4 font-normal">Order ID</th>
-                    <th className="pb-4 font-normal">Customer</th>
-                    <th className="pb-4 font-normal">Date</th>
-                    <th className="pb-4 font-normal">Items</th>
-                    <th className="pb-4 font-normal">Amount</th>
-                    <th className="pb-4 font-normal">Status</th>
-                    <th className="pb-4 font-normal text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {filteredOrders.length === 0 ? (
-                    <tr>
-                      <td colSpan="7" className="py-8 text-center text-muted italic">
-                        No orders found.
-                      </td>
+          {/* ORDERS REGISTRY PANEL */}
+          {activePanel === "orders" && (
+            <div className="space-y-6 animate-fadeIn">
+              
+              {/* Order Specific Statistics Panel */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="bg-white border border-border p-4 rounded-[2px] shadow-xs">
+                  <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Filtered Order Count</span>
+                  <span className="font-display text-xl text-ink block mt-0.5 font-medium">
+                    {ordersLoading ? "..." : (() => {
+                      const filtered = orders.filter((o) => {
+                        const matchesStatus = filterStatus === "All" || o.status === filterStatus;
+                        const matchesSearch =
+                          o.id.toString().toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+                          o.customer.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+                          o.email.toLowerCase().includes(orderSearchQuery.toLowerCase());
+                        return matchesStatus && matchesSearch;
+                      });
+                      return filtered.length;
+                    })()} Orders
+                  </span>
+                </div>
+                <div className="bg-white border border-border p-4 rounded-[2px] shadow-xs">
+                  <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Filtered Gross Sales</span>
+                  <span className="font-display text-xl text-ink block mt-0.5 font-medium">
+                    ₹{ordersLoading ? "..." : (() => {
+                      const filtered = orders.filter((o) => {
+                        const matchesStatus = filterStatus === "All" || o.status === filterStatus;
+                        const matchesSearch =
+                          o.id.toString().toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+                          o.customer.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+                          o.email.toLowerCase().includes(orderSearchQuery.toLowerCase());
+                        return matchesStatus && matchesSearch;
+                      });
+                      const val = filtered.reduce((acc, o) => {
+                        if (o.status === "Cancelled" || o.status === "Returned") return acc;
+                        const strVal = String(o.total || "0");
+                        const numVal = parseInt(strVal.replace(/[^0-9]/g, ""), 10) || 0;
+                        return acc + numVal;
+                      }, 0);
+                      return val.toLocaleString("en-IN");
+                    })()}
+                  </span>
+                </div>
+                <div className="bg-white border border-border p-4 rounded-[2px] shadow-xs">
+                  <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Awaiting Dispatch</span>
+                  <span className="font-display text-xl text-ink block mt-0.5 font-medium">
+                    {orders.filter(o => o.status === "Processing" || o.status === "Shipped").length} Pending
+                  </span>
+                </div>
+                <div className="bg-white border border-border p-4 rounded-[2px] shadow-xs">
+                  <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Average Order Value</span>
+                  <span className="font-display text-xl text-ink block mt-0.5 font-medium font-semibold text-bronze">
+                    ₹{ordersLoading ? "..." : (() => {
+                      const active = orders.filter(o => o.status !== "Cancelled");
+                      if (active.length === 0) return 0;
+                      const sum = active.reduce((acc, o) => {
+                        const strVal = String(o.total || "0");
+                        const numVal = parseInt(strVal.replace(/[^0-9]/g, ""), 10) || 0;
+                        return acc + numVal;
+                      }, 0);
+                      return Math.round(sum / active.length).toLocaleString("en-IN");
+                    })()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Main table and filters */}
+              <div className="bg-white border border-border p-6 sm:p-8 rounded-[3px] shadow-xs space-y-6">
+                
+                {/* Search query input and filter controls */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-border/50">
+                  <div>
+                    <h3 className="font-display font-light text-lg text-ink m-0 font-medium">Purchase Registry</h3>
+                    <p className="font-body text-[0.7rem] text-muted m-0">Audit, search, and update customer order fulfillment statuses.</p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <input
+                      type="text"
+                      placeholder="Search customer, ID, or email..."
+                      value={orderSearchQuery}
+                      onChange={(e) => setOrderSearchQuery(e.target.value)}
+                      className="bg-[#FDFBF7] border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] w-full sm:w-64 placeholder:text-muted/40"
+                    />
+
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-body text-xs text-muted font-light">Status:</span>
+                      <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="bg-[#FDFBF7] border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                      >
+                        <option value="All">All Statuses</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                        <option value="Return Requested">Return Requested</option>
+                        <option value="Returned">Returned</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {ordersLoading ? (
+                  <div className="text-center py-20">
+                    <div className="w-6 h-6 border-2 border-bronze border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="font-body text-xs text-muted tracking-wider uppercase animate-pulse">Fetching orders ledger...</p>
+                  </div>
+                ) : (() => {
+                  const filtered = orders.filter((o) => {
+                    const matchesStatus = filterStatus === "All" || o.status === filterStatus;
+                    const matchesSearch =
+                      o.id.toString().toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+                      o.customer.toLowerCase().includes(orderSearchQuery.toLowerCase()) ||
+                      o.email.toLowerCase().includes(orderSearchQuery.toLowerCase());
+                    return matchesStatus && matchesSearch;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="text-center py-16 border border-dashed border-border/60 rounded-[3px] bg-[#FDFBF7]">
+                        <svg className="w-8 h-8 text-muted/30 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                        </svg>
+                        <p className="font-body text-xs text-muted italic">No customer orders matching this search query found.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-left font-body text-xs text-ink">
+                        <thead>
+                          <tr className="border-b border-border/80 text-[0.62rem] uppercase tracking-wider text-muted font-light pb-2">
+                            <th className="pb-3.5 font-medium">Order ID</th>
+                            <th className="pb-3.5 font-medium">Customer Details</th>
+                            <th className="pb-3.5 font-medium">Order Date</th>
+                            <th className="pb-3.5 font-medium">Grand Total</th>
+                            <th className="pb-3.5 font-medium">Fulfillment Status</th>
+                            <th className="pb-3.5 font-medium text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                          {filtered.map((order) => {
+                            const isTerminal = order.status === "Cancelled" || order.status === "Returned";
+                            return (
+                              <tr key={order.id} className="hover:bg-[#FDFBF7]/30 transition-colors duration-150">
+                                <td className="py-4 font-mono font-bold text-ink">{order.id}</td>
+                                <td className="py-4">
+                                  <div className="flex flex-col">
+                                    <span className="font-medium text-ink">{order.customer}</span>
+                                    <span className="text-[0.65rem] text-muted font-light">{order.email}</span>
+                                  </div>
+                                </td>
+                                <td className="py-4 text-muted font-light">
+                                  {new Date(order.date).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                    year: "numeric"
+                                  })}
+                                </td>
+                                <td className="py-4 font-medium">₹{order.total.toLocaleString("en-IN")}</td>
+                                <td className="py-4">
+                                  <select
+                                    value={order.status}
+                                    disabled={isTerminal}
+                                    onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                                    className={`border bg-[#FDFBF7] px-2.5 py-1.5 font-body text-[0.68rem] tracking-wider uppercase font-semibold rounded-[2px] outline-none cursor-pointer ${
+                                      order.status === "Delivered"
+                                        ? "text-emerald-800 border-emerald-250 bg-emerald-50/20"
+                                        : order.status === "Cancelled"
+                                        ? "text-red-800 border-red-150 bg-red-50/20"
+                                        : order.status === "Returned"
+                                        ? "text-purple-800 border-purple-200 bg-purple-50/10"
+                                        : "text-bronze border-bronze/35 hover:border-bronze"
+                                    } disabled:opacity-75 disabled:cursor-not-allowed`}
+                                  >
+                                    <option value="Processing">Processing</option>
+                                    <option value="Shipped">Shipped</option>
+                                    <option value="Delivered">Delivered</option>
+                                    <option value="Cancelled">Cancelled</option>
+                                    <option value="Return Requested">Return Requested</option>
+                                    <option value="Returned">Returned</option>
+                                  </select>
+                                </td>
+                                <td className="py-4 text-right">
+                                  <button
+                                    onClick={() => setSelectedOrder(order)}
+                                    className="font-body text-[0.62rem] tracking-widest uppercase text-ink hover:text-bronze bg-transparent border-0 cursor-pointer transition-colors duration-250 py-1"
+                                  >
+                                    Invoice Details
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* CATALOG REGISTRY PANEL */}
+          {activePanel === "catalog" && (
+            <div className="bg-white border border-border p-6 sm:p-8 rounded-[3px] shadow-xs animate-fadeIn space-y-6">
+              <div className="flex items-center justify-between gap-4 pb-4 border-b border-border/50">
+                <div>
+                  <h3 className="font-display font-light text-lg text-ink m-0">Live Inventory Catalog</h3>
+                  <p className="font-body text-[0.7rem] text-muted m-0">Manage collections and physical items in stock.</p>
+                </div>
+                
+                <button
+                  onClick={openCreateMode}
+                  className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase px-5 py-3 border-0 transition-colors duration-300 cursor-pointer rounded-[2px]"
+                >
+                  + Add Product
+                </button>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse text-left font-body text-xs text-ink">
+                  <thead>
+                    <tr className="border-b border-border text-[0.65rem] tracking-[0.15em] uppercase text-muted font-normal pb-2">
+                      <th className="pb-4 font-normal">Product Detail</th>
+                      <th className="pb-4 font-normal">Classification</th>
+                      <th className="pb-4 font-normal">Price</th>
+                      <th className="pb-4 font-normal">Stock</th>
+                      <th className="pb-4 font-normal">Curated Collections</th>
+                      <th className="pb-4 font-normal text-right">Control Actions</th>
                     </tr>
-                  ) : (
-                    filteredOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-surface/30 transition-colors duration-150">
-                        <td className="py-4.5 font-medium text-bronze">{order.id}</td>
-                        <td className="py-4.5">
-                          <span className="font-medium block">{order.customer}</span>
-                          <span className="text-[0.68rem] text-muted block mt-0.5">{order.email}</span>
+                  </thead>
+                  <tbody className="divide-y divide-border/40">
+                    {products.map((p) => (
+                      <tr key={p.id} className="hover:bg-[#FDFBF7] transition-colors duration-150">
+                        <td className="py-4 flex items-center gap-3.5">
+                          <img
+                            src={p.images?.[0] || p.image}
+                            alt={p.name}
+                            className="w-10 h-12 object-cover border border-border/60 bg-surface shrink-0"
+                          />
+                          <div>
+                            <span className="font-medium text-ink block">{p.name}</span>
+                            <span className="text-[0.68rem] text-muted block mt-0.5 font-light">ID: {p.id}</span>
+                          </div>
                         </td>
-                        <td className="py-4.5 text-muted font-light">{order.date}</td>
-                        <td className="py-4.5 font-light max-w-xs truncate">{order.items}</td>
-                        <td className="py-4.5 font-medium">{order.total}</td>
-                        <td className="py-4.5">
-                          <span className={`font-normal text-[0.62rem] tracking-[0.1em] uppercase border px-2 py-0.5 ${
-                            order.status === "Delivered"
-                              ? "text-emerald-700 bg-emerald-50/50 border-emerald-200"
-                              : order.status === "Shipped"
-                              ? "text-blue-700 bg-blue-50/50 border-blue-200"
-                              : "text-bronze bg-bronze/5 border-bronze/10"
-                          }`}>
-                            {order.status}
+                        <td className="py-4">
+                          <span className="text-[0.68rem] tracking-[0.08em] uppercase text-muted font-light">
+                            {p.category}
                           </span>
                         </td>
-                        <td className="py-4.5 text-right">
-                          <select
-                            value={order.status}
-                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
-                            className="bg-background border border-border px-2 py-1 font-body text-[0.7rem] text-ink outline-none focus:border-bronze rounded-[2px]"
-                          >
-                            <option value="Processing">Set Processing</option>
-                            <option value="Shipped">Set Shipped</option>
-                            <option value="Delivered">Set Delivered</option>
-                          </select>
+                        <td className="py-4 font-medium">₹{p.price.toLocaleString("en-IN")}</td>
+                        <td className="py-4">
+                          <span className={`font-medium ${p.stock === 0 ? "text-red-700 bg-red-50/50 border border-red-200 px-1.5 py-0.5 text-[0.62rem] uppercase tracking-wider rounded-xs" : p.stock <= 3 ? "text-bronze font-semibold" : "text-ink"}`}>
+                            {p.stock === 0 ? "Out of Stock" : (p.stock !== undefined ? p.stock : 10)}
+                          </span>
+                        </td>
+                        <td className="py-4">
+                          <div className="flex flex-wrap gap-1.5 max-w-[200px]">
+                            {p.collections && p.collections.length > 0 ? (
+                              p.collections.map((coll) => (
+                                <span key={coll} className="bg-ink/5 border border-ink/10 text-ink text-[0.55rem] px-1.5 py-0.5 rounded-sm uppercase tracking-wide">
+                                  {coll.replace("-", " ")}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-muted/65 italic font-light">None</span>
+                            )}
+                          </div>
+                        </td>
+                        <td className="py-4 text-right">
+                          <div className="flex justify-end gap-3.5">
+                            <button
+                              onClick={() => openEditMode(p)}
+                              className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-ink hover:text-bronze cursor-pointer transition-colors duration-150"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProductClick(p.id)}
+                              className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-red-700 hover:text-red-950 cursor-pointer transition-colors duration-150"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* TAB CONTENT: PRODUCT CATALOG */}
-        {activeTab === "catalog" && (
-          <div className="bg-surface/40 border border-border p-6 sm:p-8 rounded-[3px] animate-fadeIn">
-            <div className="flex items-center justify-between gap-4 mb-8 pb-4 border-b border-border/50">
-              <h3 className="font-display font-light text-2xl text-ink m-0">
-                Atelier Catalog
-              </h3>
+          {/* REVIEWS MODERATION PANEL */}
+          {activePanel === "reviews" && (
+            <div className="bg-white border border-border p-6 sm:p-8 rounded-[3px] shadow-xs animate-fadeIn space-y-6">
               
-              <button
-                onClick={() => setIsFormOpen(true)}
-                className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase px-5 py-3 border-0 transition-colors duration-300 cursor-pointer rounded-[2px]"
-              >
-                + Add Product
-              </button>
+              {/* Header and Filter */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/60">
+                <div>
+                  <h3 className="font-display font-light text-lg text-ink m-0 font-medium">Review Moderation Board</h3>
+                  <p className="font-body text-[0.7rem] text-muted m-0">Approve or remove customer experiences from the catalog.</p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="font-body text-xs text-muted font-light">Status:</span>
+                  <select
+                    value={reviewFilterStatus}
+                    onChange={(e) => setReviewFilterStatus(e.target.value)}
+                    className="bg-[#FDFBF7] border border-border px-3 py-1.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                  >
+                    <option value="All">All Reviews</option>
+                    <option value="Pending">Pending Moderation</option>
+                    <option value="Approved">Approved Live</option>
+                  </select>
+                </div>
+              </div>
+
+              {reviewsLoading ? (
+                <div className="text-center py-20">
+                  <div className="w-6 h-6 border-2 border-bronze border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="font-body text-xs text-muted tracking-wider uppercase">Loading review directory...</p>
+                </div>
+              ) : (() => {
+                const filtered = adminReviews.filter((rev) => {
+                  if (reviewFilterStatus === "Pending") return !rev.isApproved;
+                  if (reviewFilterStatus === "Approved") return rev.isApproved;
+                  return true;
+                });
+
+                if (filtered.length === 0) {
+                  return (
+                    <div className="text-center py-16 border border-dashed border-border/60 rounded-[3px] bg-[#FDFBF7]">
+                      <svg className="w-8 h-8 text-muted/40 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                      </svg>
+                      <p className="font-body text-xs text-muted italic">No customer reviews match this filter criteria.</p>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left font-body text-xs text-ink">
+                      <thead>
+                        <tr className="border-b border-border/80 text-[0.62rem] uppercase tracking-wider text-muted font-light">
+                          <th className="pb-3.5 font-medium">Piece Details</th>
+                          <th className="pb-3.5 font-medium">Customer Details</th>
+                          <th className="pb-3.5 font-medium">Rating</th>
+                          <th className="pb-3.5 font-medium">Experience Comments</th>
+                          <th className="pb-3.5 font-medium">Date</th>
+                          <th className="pb-3.5 font-medium text-right">Moderation Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {filtered.map((rev) => (
+                          <tr key={rev._id} className="hover:bg-[#FDFBF7]/30 transition-colors duration-150">
+                            <td className="py-4 font-medium text-ink max-w-[150px] truncate">
+                              {rev.product?.name || `Product ID: ${rev.product}`}
+                            </td>
+                            <td className="py-4">
+                              <div className="flex flex-col">
+                                <span className="font-medium text-ink">{rev.name}</span>
+                                {rev.isVerifiedBuyer && (
+                                  <span className="inline-flex items-center text-[0.55rem] font-bold text-emerald-800 uppercase tracking-widest mt-0.5">
+                                    ✓ Verified Buyer
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-4 text-gold">
+                              <div className="flex items-center gap-0.5">
+                                {[...Array(5)].map((_, idx) => (
+                                  <svg
+                                    key={idx}
+                                    width="11"
+                                    height="11"
+                                    viewBox="0 0 24 24"
+                                    fill={idx < rev.rating ? "currentColor" : "none"}
+                                    stroke="currentColor"
+                                    strokeWidth="1.8"
+                                  >
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                  </svg>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-4 text-muted font-light max-w-[280px] break-words">
+                              {rev.comment}
+                            </td>
+                            <td className="py-4 text-muted/80 font-light">
+                              {new Date(rev.createdAt).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </td>
+                            <td className="py-4 text-right">
+                              <div className="flex justify-end gap-3 items-center">
+                                {!rev.isApproved ? (
+                                  <button
+                                    onClick={() => handleApproveReview(rev._id)}
+                                    className="font-body text-[0.62rem] tracking-widest uppercase text-emerald-700 hover:text-emerald-900 bg-transparent border-0 cursor-pointer transition-colors duration-200"
+                                  >
+                                    Approve & Publish
+                                  </button>
+                                ) : (
+                                  <span className="text-[0.6rem] font-medium text-muted uppercase tracking-widest border border-border/80 px-2 py-0.5 rounded-sm bg-[#FDFBF7]">
+                                    Live
+                                  </span>
+                                )}
+                                <button
+                                  onClick={() => handleRejectReview(rev._id)}
+                                  className="font-body text-[0.62rem] tracking-widest uppercase text-red-700 hover:text-red-950 bg-transparent border-0 cursor-pointer transition-colors duration-200"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
+          )}
 
-            {/* Inventory table */}
-            <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left font-body text-xs text-ink">
-                <thead>
-                  <tr className="border-b border-border text-[0.65rem] tracking-[0.15em] uppercase text-muted font-normal">
-                    <th className="pb-4 font-normal">Product</th>
-                    <th className="pb-4 font-normal">Category</th>
-                    <th className="pb-4 font-normal">Price</th>
-                    <th className="pb-4 font-normal">Curated Spaces</th>
-                    <th className="pb-4 font-normal">Curated Collections</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/40">
-                  {products.map((p) => (
-                    <tr key={p.id} className="hover:bg-surface/30 transition-colors duration-150">
-                      <td className="py-4 flex items-center gap-3.5">
-                        <img
-                          src={p.images?.[0] || p.image}
-                          alt={p.name}
-                          className="w-10 h-12 object-cover border border-border/60 bg-surface shrink-0"
-                        />
-                        <div>
-                          <span className="font-medium text-ink block">{p.name}</span>
-                          <span className="text-[0.68rem] text-muted block mt-0.5">ID: {p.id}</span>
-                        </div>
-                      </td>
-                      <td className="py-4">
-                        <span className="text-[0.68rem] tracking-[0.08em] uppercase text-muted font-light">
-                          {p.category}
-                        </span>
-                      </td>
-                      <td className="py-4 font-medium">₹{p.price.toLocaleString("en-IN")}</td>
-                      <td className="py-4">
-                        <div className="flex flex-wrap gap-1.5 max-w-[180px]">
-                          {p.spaces && p.spaces.length > 0 ? (
-                            p.spaces.map((space) => (
-                              <span key={space} className="bg-bronze/5 border border-bronze/10 text-bronze text-[0.55rem] px-1.5 py-0.5 rounded-sm uppercase tracking-wide">
-                                {space.replace("-", " ")}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-muted italic text-[0.68rem] font-light">None</span>
-                          )}
-                        </div>
-                      </td>
-                      <td className="py-4">
-                        <div className="flex flex-wrap gap-1.5 max-w-[200px]">
-                          {p.collections && p.collections.length > 0 ? (
-                            p.collections.map((coll) => (
-                              <span key={coll} className="bg-ink/5 border border-ink/10 text-ink text-[0.55rem] px-1.5 py-0.5 rounded-sm uppercase tracking-wide">
-                                {coll.replace("-", " ")}
-                              </span>
-                            ))
-                          ) : (
-                            <span className="text-muted italic text-[0.68rem] font-light">None</span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* PROMOTIONS PANEL */}
+          {activePanel === "promotions" && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start animate-fadeIn">
+              
+              {/* Create Promo Code form */}
+              <div className="bg-white border border-border p-6 sm:p-8 rounded-[3px] shadow-xs space-y-6">
+                <div>
+                  <h3 className="font-display font-light text-lg text-ink m-0 font-medium">Generate Promotion</h3>
+                  <p className="font-body text-[0.7rem] text-muted m-0">Configure database coupon entries for customer discounts.</p>
+                </div>
+
+                {promoFormError && (
+                  <div className="bg-red-50 border border-red-200 text-red-800 p-4 text-xs font-body rounded-sm">
+                    {promoFormError}
+                  </div>
+                )}
+                {promoFormSuccess && (
+                  <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 text-xs font-body rounded-sm font-medium">
+                    {promoFormSuccess}
+                  </div>
+                )}
+
+                <form onSubmit={handlePromoSubmit} className="space-y-4">
+                  <div>
+                    <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Coupon Code</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. SAVE15"
+                      value={promoFormData.code}
+                      onChange={(e) => setPromoFormData({ ...promoFormData, code: e.target.value.toUpperCase() })}
+                      className="w-full bg-[#FDFBF7] border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] uppercase"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Discount Type</label>
+                      <select
+                        value={promoFormData.discountType}
+                        onChange={(e) => setPromoFormData({ ...promoFormData, discountType: e.target.value })}
+                        className="w-full bg-[#FDFBF7] border border-border px-3 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                      >
+                        <option value="percentage">Percent Off (%)</option>
+                        <option value="fixed">Flat Cash Cut (₹)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Value</label>
+                      <input
+                        type="number"
+                        placeholder="e.g. 15 or 1000"
+                        value={promoFormData.value}
+                        onChange={(e) => setPromoFormData({ ...promoFormData, value: e.target.value })}
+                        className="w-full bg-[#FDFBF7] border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Minimum Order Total (₹)</label>
+                    <input
+                      type="number"
+                      placeholder="e.g. 5000 (0 for no limit)"
+                      value={promoFormData.minPurchase}
+                      onChange={(e) => setPromoFormData({ ...promoFormData, minPurchase: e.target.value })}
+                      className="w-full bg-[#FDFBF7] border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Expiration Timeline</label>
+                    <input
+                      type="date"
+                      value={promoFormData.expiryDate}
+                      onChange={(e) => setPromoFormData({ ...promoFormData, expiryDate: e.target.value })}
+                      className="w-full bg-[#FDFBF7] border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full h-11 bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase border-0 cursor-pointer transition-colors duration-300 rounded-[2px] shadow-sm"
+                  >
+                    Register Promo Code
+                  </button>
+                </form>
+              </div>
+
+              {/* Promotions list */}
+              <div className="lg:col-span-2 bg-white border border-border p-6 sm:p-8 rounded-[3px] shadow-xs space-y-6">
+                <div>
+                  <h3 className="font-display font-light text-lg text-ink m-0 font-medium">Active Campaigns</h3>
+                  <p className="font-body text-[0.7rem] text-muted m-0">Directory of running discounts across the Atelier network.</p>
+                </div>
+
+                {promosLoading ? (
+                  <div className="text-center py-20">
+                    <div className="w-6 h-6 border-2 border-bronze border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                    <p className="font-body text-xs text-muted tracking-wider uppercase animate-pulse">Loading active codes...</p>
+                  </div>
+                ) : promos.length === 0 ? (
+                  <div className="text-center py-16 border border-dashed border-border/60 rounded-[3px] bg-[#FDFBF7]">
+                    <svg className="w-8 h-8 text-muted/40 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5a2 2 0 10-2 2h2zm0 8h.01M19 10a2 2 0 11-4 0V8h4v2zM5 10a2 2 0 104 0V8H5v2z" />
+                    </svg>
+                    <p className="font-body text-xs text-muted italic">No active promotional campaigns registered yet.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left font-body text-xs text-ink">
+                      <thead>
+                        <tr className="border-b border-border/80 text-[0.62rem] uppercase tracking-wider text-muted font-light pb-2">
+                          <th className="pb-3 font-medium">Promo Code</th>
+                          <th className="pb-3 font-medium">Benefit</th>
+                          <th className="pb-3 font-medium">Min Purchase</th>
+                          <th className="pb-3 font-medium">Expires</th>
+                          <th className="pb-3 font-medium">Status</th>
+                          <th className="pb-3 font-medium text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border/40">
+                        {promos.map((p) => {
+                          const isExpired = new Date(p.expiryDate) < new Date();
+                          return (
+                            <tr key={p._id} className="hover:bg-[#FDFBF7]/30 transition-colors duration-150">
+                              <td className="py-3.5 font-bold tracking-wider text-ink">{p.code}</td>
+                              <td className="py-3.5 font-medium text-emerald-800">
+                                {p.discountType === "percentage" ? `${p.value}% Off` : `₹${p.value.toLocaleString("en-IN")} Off`}
+                              </td>
+                              <td className="py-3.5 text-muted font-light">
+                                {p.minPurchase > 0 ? `₹${p.minPurchase.toLocaleString("en-IN")}` : "None"}
+                              </td>
+                              <td className="py-3.5 text-muted font-light">
+                                {new Date(p.expiryDate).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                  year: "numeric",
+                                })}
+                              </td>
+                              <td className="py-3.5">
+                                <span className={`inline-block text-[0.55rem] uppercase tracking-widest px-1.5 py-0.5 rounded-sm font-semibold ${
+                                  isExpired
+                                    ? "bg-red-50 text-red-700 border border-red-100"
+                                    : "bg-emerald-50 text-emerald-800 border border-emerald-100"
+                                }`}>
+                                  {isExpired ? "Expired" : "Active"}
+                                </span>
+                              </td>
+                              <td className="py-3.5 text-right">
+                                <button
+                                  onClick={() => handleDeletePromo(p._id)}
+                                  className="font-body text-[0.62rem] tracking-widest uppercase text-red-700 hover:text-red-950 bg-transparent border-0 cursor-pointer transition-colors duration-200"
+                                >
+                                  Delete
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
+      </main>
 
-      </div>
-
-      {/* ADD PRODUCT MODAL OVERLAY */}
+      {/* 3. PRODUCT CREATION / MODIFICATION MODAL OVERLAY */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-dark/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn">
           <form
             onSubmit={handleProductSubmit}
-            className="bg-background border border-border w-full max-w-lg max-h-[85vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative flex flex-col gap-6 rounded-[3px]"
+            className="bg-white border border-border w-full max-w-4xl max-h-[90vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative grid grid-cols-1 md:grid-cols-2 gap-8 text-ink rounded-[3px]"
           >
             {/* Close Button */}
             <button
               type="button"
-              onClick={() => setIsFormOpen(false)}
-              className="absolute top-5 right-5 text-ink/65 hover:text-bronze bg-transparent border-0 cursor-pointer p-1 transition-colors duration-200"
+              onClick={() => { setIsFormOpen(false); setEditingProductId(null); }}
+              className="absolute top-5 right-5 text-ink/65 hover:text-bronze bg-transparent border-0 cursor-pointer p-1"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                 <line x1="18" y1="6" x2="6" y2="18" />
@@ -471,191 +1263,506 @@ const AdminPage = () => {
               </svg>
             </button>
 
-            {/* Header */}
-            <div>
-              <div className="flex items-center gap-2.5 mb-1.5">
-                <span className="block w-5 h-px bg-bronze" />
-                <span className="font-body font-normal text-[0.55rem] tracking-[0.38em] uppercase text-bronze">
-                  Atelier Registry
-                </span>
-              </div>
-              <h2 className="font-display font-light text-2xl text-ink m-0">
-                Add New Product
-              </h2>
-            </div>
+            {/* Left Column: Form Fields */}
+            <div className="space-y-6">
+              
+              {/* Product Basic Info */}
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-3 sm:col-span-1">
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Product Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Travertine Column Table"
+                    className="w-full bg-[#FDFBF7] border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] transition-all duration-300"
+                  />
+                </div>
 
-            {/* Status alerts */}
-            {formSuccess && (
-              <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 text-xs font-body tracking-[0.02em] rounded-sm">
-                {formSuccess}
-              </div>
-            )}
-            {formError && (
-              <div className="bg-red-50 border border-red-200 text-red-800 p-4 text-xs font-body tracking-[0.02em] rounded-sm">
-                {formError}
-              </div>
-            )}
+                <div className="col-span-3 sm:col-span-1">
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Category</label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full bg-[#FDFBF7] border border-border px-3 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] transition-all duration-300"
+                  >
+                    <option value="furniture">Furniture</option>
+                    <option value="lighting">Lighting</option>
+                    <option value="wall-decor">Wall Decor</option>
+                    <option value="textiles">Textiles</option>
+                    <option value="decor-accessories">Decor Accessories</option>
+                  </select>
+                </div>
 
-            {/* Basic Grid */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Product Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Travertine Column Table"
-                  className="w-full bg-background border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
-                />
+                <div className="col-span-3 sm:col-span-1">
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Inventory Stock</label>
+                  <input
+                    type="number"
+                    name="stock"
+                    value={formData.stock}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 10"
+                    className="w-full bg-[#FDFBF7] border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] transition-all duration-300"
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Category</label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full bg-background border border-border px-3 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+              {/* Pricing & Discounts Section */}
+              <div className="bg-[#FDFBF7] p-5 border border-border/80 rounded-[2px] space-y-4">
+                <h3 className="font-body text-[0.62rem] uppercase tracking-wider text-bronze m-0 font-medium">Pricing & Valuation</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Retail Price (₹)</label>
+                    <input
+                      type="number"
+                      name="price"
+                      value={formData.price}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 12500"
+                      className="w-full bg-white border border-border px-4 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Original (Compare-At) Price (₹)</label>
+                    <input
+                      type="number"
+                      name="originalPrice"
+                      value={formData.originalPrice}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 15000"
+                      className="w-full bg-white border border-border px-4 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                    />
+                  </div>
+                </div>
+
+                {/* Calculate savings percentage */}
+                {formData.price && formData.originalPrice && Number(formData.originalPrice) > Number(formData.price) && (
+                  <div className="text-[0.68rem] font-body text-emerald-800 bg-emerald-50 border border-emerald-250/20 px-3 py-2.5 rounded-sm flex items-center gap-1.5 font-medium leading-none">
+                    <span>✓ Custom discount applied successfully:</span>
+                    <strong className="underline decoration-wavy">Save {Math.round(((Number(formData.originalPrice) - Number(formData.price)) / Number(formData.originalPrice)) * 100)}%</strong>
+                  </div>
+                )}
+              </div>
+
+              {/* Specifications Grid */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Dimensions (Specifications)</label>
+                  <input
+                    type="text"
+                    name="dimSpec"
+                    value={formData.dimSpec}
+                    onChange={handleInputChange}
+                    placeholder="e.g., H 45cm x Diameter 90cm"
+                    className="w-full bg-[#FDFBF7] border border-border px-4 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                  />
+                </div>
+                <div>
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Material (Specifications)</label>
+                  <input
+                    type="text"
+                    name="matSpec"
+                    value={formData.matSpec}
+                    onChange={handleInputChange}
+                    placeholder="e.g., Solid Travertine Stone"
+                    className="w-full bg-[#FDFBF7] border border-border px-4 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                  />
+                </div>
+              </div>
+
+              {/* Dynamic Drag-and-Drop Image Section */}
+              <div className="space-y-3">
+                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">Images Asset Manager</label>
+                
+                <div
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-[3px] p-6 text-center transition-all duration-200 cursor-pointer ${
+                    isDragging ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/60 bg-[#FDFBF7]"
+                  }`}
                 >
-                  <option value="furniture">Furniture</option>
-                  <option value="lighting">Lighting</option>
-                  <option value="wall-decor">Wall Decor</option>
-                  <option value="textiles">Textiles</option>
-                  <option value="decor-accessories">Decor Accessories</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Price (₹)</label>
-                <input
-                  type="number"
-                  name="price"
-                  value={formData.price}
-                  onChange={handleInputChange}
-                  placeholder="e.g., 28000"
-                  className="w-full bg-background border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Image URLs (comma separated)</label>
-                <input
-                  type="text"
-                  name="imageInput"
-                  value={formData.imageInput}
-                  onChange={handleInputChange}
-                  placeholder="https://images.unsplash.com/photo-..., https://images.unsplash.com/..."
-                  className="w-full bg-background border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Description</label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows="3"
-                  placeholder="Provide an artistic description of the materials, architectural shape, and design inspiration..."
-                  className="w-full bg-background border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Dimensions Spec</label>
-                <input
-                  type="text"
-                  name="dimSpec"
-                  value={formData.dimSpec}
-                  onChange={handleInputChange}
-                  placeholder='e.g., W: 32" | D: 32" | H: 18"'
-                  className="w-full bg-background border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
-                />
-              </div>
-
-              <div>
-                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Materials Spec</label>
-                <input
-                  type="text"
-                  name="matSpec"
-                  value={formData.matSpec}
-                  onChange={handleInputChange}
-                  placeholder="e.g., Solid Honed Travertine"
-                  className="w-full bg-background border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
-                />
-              </div>
-
-              <div className="col-span-2">
-                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5">Care Instructions</label>
-                <textarea
-                  name="careInstructions"
-                  value={formData.careInstructions}
-                  onChange={handleInputChange}
-                  rows="2"
-                  placeholder="Wipe with soft clean cloth. Do not use..."
-                  className="w-full bg-background border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] resize-none"
-                />
-              </div>
-            </div>
-
-            {/* Checkboxes: Spaces */}
-            <div>
-              <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-2">Curated Spaces</label>
-              <div className="flex flex-wrap gap-x-5 gap-y-2">
-                {["living-room", "bedroom", "dining-room", "home-office", "outdoor"].map((space) => (
-                  <label key={space} className="flex items-center gap-2 font-body text-xs text-ink select-none cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.spaces.includes(space)}
-                      onChange={() => handleCheckboxChange("spaces", space)}
-                      className="accent-bronze"
-                    />
-                    <span className="capitalize">{space.replace("-", " ")}</span>
+                  <input
+                    type="file"
+                    id="file-upload"
+                    multiple
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <label htmlFor="file-upload" className="cursor-pointer space-y-2 block">
+                    <svg className="w-7 h-7 text-muted/60 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span className="font-body text-xs text-ink block font-medium">
+                      Drag & Drop Images Here
+                    </span>
+                    <span className="font-body text-[0.65rem] text-muted block font-light">
+                      or click to browse local files (JPEG, PNG, WEBP)
+                    </span>
                   </label>
-                ))}
+                </div>
+
+                {isUploadingImage && (
+                  <div className="flex items-center gap-2 text-[0.68rem] text-bronze font-body animate-pulse font-medium">
+                    <div className="w-3.5 h-3.5 border-2 border-bronze border-t-transparent rounded-full animate-spin" />
+                    Uploading asset to catalog folder...
+                  </div>
+                )}
+
+                {/* Uploaded image previews */}
+                {formData.images.filter(Boolean).length > 0 && (
+                  <div className="grid grid-cols-4 gap-3 pt-1">
+                    {formData.images.filter(Boolean).map((img, idx) => (
+                      <div key={idx} className="relative group aspect-square border border-border bg-surface overflow-hidden rounded-sm">
+                        <img src={img} alt="Product view" className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => removeUploadedImage(idx)}
+                          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center text-white border-0 cursor-pointer transition-opacity duration-200 text-[0.55rem] font-body tracking-wider uppercase font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
             </div>
 
-            {/* Checkboxes: Collections */}
-            <div>
-              <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-2">Curated Collections</label>
-              <div className="grid grid-cols-2 gap-y-2">
-                {[
-                  "modern-minimalist",
-                  "luxury-living",
-                  "scandinavian",
-                  "boho-chic",
-                  "new-arrivals",
-                  "best-sellers"
-                ].map((coll) => (
-                  <label key={coll} className="flex items-center gap-2 font-body text-xs text-ink select-none cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={formData.collections.includes(coll)}
-                      onChange={() => handleCheckboxChange("collections", coll)}
-                      className="accent-bronze"
+            {/* Right Column: HTML Editors & Descriptions */}
+            <div className="flex flex-col justify-between space-y-6">
+              
+              {/* Description HTML Editor */}
+              <div className="space-y-2 flex-grow">
+                <div className="flex justify-between items-center pb-1">
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted font-medium">Product Description</label>
+                  <div className="flex border border-border rounded-sm overflow-hidden text-[0.68rem] font-body">
+                    <button
+                      type="button"
+                      onClick={() => setDescTab("write")}
+                      className={`px-3 py-1 border-0 cursor-pointer font-medium ${descTab === "write" ? "bg-ink text-background" : "bg-surface text-ink"}`}
+                    >
+                      Editor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDescTab("preview")}
+                      className={`px-3 py-1 border-0 cursor-pointer font-medium ${descTab === "preview" ? "bg-ink text-background" : "bg-surface text-ink"}`}
+                    >
+                      HTML Preview
+                    </button>
+                  </div>
+                </div>
+
+                {descTab === "write" ? (
+                  <div className="border border-border rounded-[2px] overflow-hidden bg-[#FDFBF7] focus-within:border-bronze transition-colors">
+                    {/* HTML Edit Toolbar */}
+                    <div className="flex gap-1.5 p-2 border-b border-border bg-white text-[0.62rem] font-body text-ink">
+                      <button type="button" onClick={() => insertHTMLTag("description", "b")} className="px-2 py-1 bg-surface border border-border/80 hover:bg-[#FDFBF7] cursor-pointer rounded-[2px] font-bold">B</button>
+                      <button type="button" onClick={() => insertHTMLTag("description", "i")} className="px-2 py-1 bg-surface border border-border/80 hover:bg-[#FDFBF7] cursor-pointer rounded-[2px] italic">I</button>
+                      <button type="button" onClick={() => insertHTMLTag("description", "p")} className="px-2 py-1 bg-surface border border-border/80 hover:bg-[#FDFBF7] cursor-pointer rounded-[2px]">Paragraph</button>
+                      <button type="button" onClick={() => insertHTMLTag("description", "ul")} className="px-2 py-1 bg-surface border border-border/80 hover:bg-[#FDFBF7] cursor-pointer rounded-[2px]">List</button>
+                    </div>
+                    <textarea
+                      id="description"
+                      name="description"
+                      value={formData.description}
+                      onChange={handleInputChange}
+                      rows="6"
+                      placeholder="Describe the architectural finish, materials, and form..."
+                      className="w-full bg-white border-0 px-4 py-3 font-body text-xs text-ink outline-none resize-none focus:ring-0 placeholder:text-muted/30"
                     />
-                    <span className="capitalize">{coll.replace("-", " ")}</span>
-                  </label>
-                ))}
+                  </div>
+                ) : (
+                  <div
+                    className="w-full bg-[#FDFBF7] border border-border px-4 py-4 font-body text-xs text-ink min-h-[100px] max-h-[180px] overflow-y-auto leading-relaxed rounded-[2px]"
+                    dangerouslySetInnerHTML={{ __html: formData.description || '<p class="text-muted/40 italic text-center py-6">Nothing to preview yet. Use the Editor tab to enter content.</p>' }}
+                  />
+                )}
               </div>
+
+              {/* Care Instructions HTML Editor */}
+              <div className="space-y-2 flex-grow">
+                <div className="flex justify-between items-center pb-1">
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted font-medium">Care & Maintenance Instructions</label>
+                  <div className="flex border border-border rounded-sm overflow-hidden text-[0.68rem] font-body">
+                    <button
+                      type="button"
+                      onClick={() => setCareTab("write")}
+                      className={`px-3 py-1 border-0 cursor-pointer font-medium ${careTab === "write" ? "bg-ink text-background" : "bg-surface text-ink"}`}
+                    >
+                      Editor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCareTab("preview")}
+                      className={`px-3 py-1 border-0 cursor-pointer font-medium ${careTab === "preview" ? "bg-ink text-background" : "bg-surface text-ink"}`}
+                    >
+                      HTML Preview
+                    </button>
+                  </div>
+                </div>
+
+                {careTab === "write" ? (
+                  <div className="border border-border rounded-[2px] overflow-hidden bg-[#FDFBF7] focus-within:border-bronze transition-colors">
+                    {/* HTML Edit Toolbar */}
+                    <div className="flex gap-1.5 p-2 border-b border-border bg-white text-[0.62rem] font-body text-ink">
+                      <button type="button" onClick={() => insertHTMLTag("careInstructions", "b")} className="px-2 py-1 bg-surface border border-border/80 hover:bg-[#FDFBF7] cursor-pointer rounded-[2px] font-bold">B</button>
+                      <button type="button" onClick={() => insertHTMLTag("careInstructions", "i")} className="px-2 py-1 bg-surface border border-border/80 hover:bg-[#FDFBF7] cursor-pointer rounded-[2px] italic">I</button>
+                      <button type="button" onClick={() => insertHTMLTag("careInstructions", "p")} className="px-2 py-1 bg-surface border border-border/80 hover:bg-[#FDFBF7] cursor-pointer rounded-[2px]">Paragraph</button>
+                      <button type="button" onClick={() => insertHTMLTag("careInstructions", "ul")} className="px-2 py-1 bg-surface border border-border/80 hover:bg-[#FDFBF7] cursor-pointer rounded-[2px]">List</button>
+                    </div>
+                    <textarea
+                      id="careInstructions"
+                      name="careInstructions"
+                      value={formData.careInstructions}
+                      onChange={handleInputChange}
+                      rows="4"
+                      placeholder="Clean with soft dry cloth, avoid harsh chemical detergents..."
+                      className="w-full bg-white border-0 px-4 py-3 font-body text-xs text-ink outline-none resize-none focus:ring-0 placeholder:text-muted/30"
+                    />
+                  </div>
+                ) : (
+                  <div
+                    className="w-full bg-[#FDFBF7] border border-border px-4 py-4 font-body text-xs text-ink min-h-[100px] max-h-[180px] overflow-y-auto leading-relaxed rounded-[2px]"
+                    dangerouslySetInnerHTML={{ __html: formData.careInstructions || '<p class="text-muted/40 italic text-center py-6">Nothing to preview yet. Use the Editor tab to enter content.</p>' }}
+                  />
+                )}
+              </div>
+
+              {/* Checkboxes: Spaces */}
+              <div>
+                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-2 font-medium">Curated Spaces</label>
+                <div className="grid grid-cols-2 gap-y-2">
+                  {["living-room", "bedroom", "dining-room", "study-room", "outdoor"].map((space) => (
+                    <label key={space} className="flex items-center gap-2 font-body text-xs text-ink select-none cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.spaces.includes(space)}
+                        onChange={() => handleCheckboxChange("spaces", space)}
+                        className="accent-bronze"
+                      />
+                      <span className="capitalize">{space.replace("-", " ")}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Checkboxes: Collections */}
+              <div>
+                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-2 font-medium">Curated Collections</label>
+                <div className="grid grid-cols-2 gap-y-2">
+                  {[
+                    "modern-minimalist",
+                    "luxury-living",
+                    "scandinavian",
+                    "boho-chic",
+                    "new-arrivals",
+                    "best-sellers"
+                  ].map((coll) => (
+                    <label key={coll} className="flex items-center gap-2 font-body text-xs text-ink select-none cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.collections.includes(coll)}
+                        onChange={() => handleCheckboxChange("collections", coll)}
+                        className="accent-bronze"
+                      />
+                      <span className="capitalize">{coll.replace("-", " ")}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Alert Feedback Messages */}
+              {formError && (
+                <div className="bg-red-50 border border-red-200 text-red-800 p-4 text-xs font-body rounded-sm">
+                  {formError}
+                </div>
+              )}
+              {formSuccess && (
+                <div className="bg-emerald-50 border border-emerald-250 text-emerald-800 p-4 text-xs font-body rounded-sm font-medium">
+                  {formSuccess}
+                </div>
+              )}
+
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full h-14 bg-ink hover:bg-bronze text-background font-body font-medium text-xs tracking-[0.25em] uppercase border-0 cursor-pointer transition-all duration-300 disabled:opacity-55 disabled:cursor-not-allowed rounded-[3px] shadow-sm flex items-center justify-center gap-3"
+              >
+                {isSubmitting && (
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                )}
+                <span>
+                  {isSubmitting
+                    ? "Registering catalog records..."
+                    : editingProductId
+                    ? "Apply Catalog Modifications"
+                    : "Publish Piece to Atelier"}
+                </span>
+              </button>
+
             </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="mt-4 h-12 bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase border-0 cursor-pointer transition-colors duration-300 disabled:opacity-55 rounded-[2px]"
-            >
-              {isSubmitting ? "Uploading to Atelier..." : "Publish Product"}
-            </button>
-
           </form>
         </div>
       )}
 
-      <BrandStrip />
+      {/* 4. ORDER DETAILS MODAL OVERLAY */}
+      {selectedOrder && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn print:bg-white print:p-0">
+          <div className="bg-white border border-border w-full max-w-2xl max-h-[90vh] overflow-y-auto p-8 md:p-10 shadow-2xl relative flex flex-col gap-6 rounded-[3px] text-ink print:border-0 print:shadow-none print:max-h-full print:overflow-visible">
+            
+            {/* Close Button (Hidden on Print) */}
+            <button
+              type="button"
+              onClick={() => setSelectedOrder(null)}
+              className="absolute top-5 right-5 text-ink/65 hover:text-bronze bg-transparent border-0 cursor-pointer p-1 transition-colors duration-200 print:hidden"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+
+            {/* Invoice Corporate Header */}
+            <div className="text-center pb-4 border-b border-border/80 relative">
+              <span className="font-display font-light text-2xl tracking-[0.25em] text-ink uppercase block">
+                N O V E L L A
+              </span>
+              <span className="font-body text-[0.55rem] tracking-[0.3em] text-bronze uppercase block mt-1">
+                Atelier Official Invoice
+              </span>
+              <div className="mt-4 flex justify-between items-center text-[0.7rem] font-body text-muted/80">
+                <span><strong>Invoice ID:</strong> {selectedOrder.id}</span>
+                <span><strong>Date:</strong> {new Date(selectedOrder.date).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</span>
+              </div>
+            </div>
+
+            {/* Customer & Shipping Details Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-xs font-body py-2 border-b border-border/50">
+              <div>
+                <span className="text-muted block uppercase text-[0.55rem] tracking-wider mb-1.5 font-medium">Customer Profile</span>
+                <span className="font-medium text-ink block">{selectedOrder.customer}</span>
+                <span className="text-muted/80 block mt-0.5">{selectedOrder.email}</span>
+                <span className="text-muted/80 block">Phone: {selectedOrder.phone}</span>
+              </div>
+              
+              <div>
+                <span className="text-muted block uppercase text-[0.55rem] tracking-wider mb-1.5 font-medium">Delivery Destination</span>
+                <span className="font-medium text-ink block">Method: {selectedOrder.method}</span>
+                <span className="text-muted/80 block whitespace-pre-line leading-relaxed mt-0.5">
+                  {(() => {
+                    const addr = selectedOrder.address;
+                    if (!addr) return "Not specified";
+                    if (typeof addr === "string") return addr;
+                    return [
+                      addr.street,
+                      addr.apartment,
+                      `${addr.city || ""}, ${addr.state || ""} ${addr.zipCode || ""}`.trim()
+                    ].filter(Boolean).join("\n");
+                  })()}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-muted block uppercase text-[0.55rem] tracking-wider mb-1.5 font-medium">Payment Gateway</span>
+                <span className="font-medium text-ink block capitalize">
+                  {selectedOrder.paymentDetails?.paymentMethod || selectedOrder.paymentDetails?.method || "Razorpay"}
+                  {selectedOrder.paymentDetails?.paymentStatus && ` (${selectedOrder.paymentDetails.paymentStatus})`}
+                </span>
+                {(selectedOrder.paymentDetails?.transactionToken || selectedOrder.paymentDetails?.razorpayPaymentId) && (
+                  <span className="text-muted/80 block mt-1 font-mono text-[0.65rem]">
+                    Token ID: {selectedOrder.paymentDetails.transactionToken || selectedOrder.paymentDetails.razorpayPaymentId}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Purchased Items List */}
+            <div className="space-y-3">
+              <span className="font-body font-semibold text-[0.62rem] tracking-wider uppercase text-muted block">Purchased Ledger</span>
+              <div className="border border-border/70 rounded-[2px] overflow-hidden">
+                <div className="bg-[#FDFBF7] px-4 py-2 border-b border-border/70 grid grid-cols-4 text-[0.62rem] uppercase tracking-wider text-muted font-medium">
+                  <div className="col-span-2">Item description</div>
+                  <div className="text-center">Quantity</div>
+                  <div className="text-right">Price Total</div>
+                </div>
+                <div className="divide-y divide-border/40 font-body text-xs px-4">
+                  {selectedOrder.products.map((item, idx) => (
+                    <div key={idx} className="py-3 grid grid-cols-4 items-center">
+                      <div className="col-span-2">
+                        <span className="font-medium text-ink block">{item.name}</span>
+                        <div className="flex gap-2 text-[0.65rem] text-muted/80 font-light mt-0.5">
+                          {item.color && <span>Color: {item.color}</span>}
+                          {item.size && <span>Size: {item.size}</span>}
+                        </div>
+                      </div>
+                      <div className="text-center font-mono text-muted">{item.quantity}</div>
+                      <div className="text-right font-medium text-ink">₹{(item.price * item.quantity).toLocaleString("en-IN")}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Price Calculations breakdown */}
+            <div className="bg-[#FDFBF7] p-5 border border-border/80 rounded-[2px] font-body text-xs space-y-2.5 ml-auto w-full sm:w-80">
+              <div className="flex justify-between text-muted">
+                <span>Subtotal</span>
+                <span>₹{selectedOrder.pricingBreakdown.subtotal.toLocaleString("en-IN")}</span>
+              </div>
+              {selectedOrder.pricingBreakdown.discount > 0 && (
+                <div className="flex justify-between text-emerald-800 font-medium">
+                  <span>Promo Code Deduction</span>
+                  <span>-₹{selectedOrder.pricingBreakdown.discount.toLocaleString("en-IN")}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-muted">
+                <span>Complimentary Delivery</span>
+                <span>{selectedOrder.pricingBreakdown.shipping > 0 ? `₹${selectedOrder.pricingBreakdown.shipping}` : "₹0 (Free)"}</span>
+              </div>
+              <div className="flex justify-between text-muted/65 text-[0.68rem] font-light">
+                <span>Estimated Tax (18% GST inc.)</span>
+                <span>₹{Math.round((selectedOrder.pricingBreakdown.subtotal - selectedOrder.pricingBreakdown.discount) * 0.18).toLocaleString("en-IN")}</span>
+              </div>
+              <div className="border-t border-border/80 pt-3.5 flex justify-between items-end">
+                <span className="font-display font-medium text-sm text-ink m-0">Settled Amount</span>
+                <span className="font-display font-semibold text-base text-ink leading-none">
+                  ₹{selectedOrder.pricingBreakdown.total.toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+
+            {/* Print trigger CTA */}
+            <div className="flex justify-end gap-3 mt-2 border-t border-border/40 pt-4 print:hidden">
+              <button
+                type="button"
+                onClick={() => window.print()}
+                className="px-4 py-2.5 border border-border bg-white text-ink font-body text-[0.62rem] tracking-wider uppercase hover:bg-[#FDFBF7] hover:border-bronze cursor-pointer transition-colors duration-250 rounded-[2px]"
+              >
+                Print Invoice
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedOrder(null)}
+                className="px-5 py-2.5 bg-ink hover:bg-bronze text-background font-body text-[0.62rem] tracking-wider uppercase border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

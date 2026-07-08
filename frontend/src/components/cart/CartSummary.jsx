@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCart } from "../../context/CartContext";
 import { useNavigate } from "react-router-dom";
+import API from "../../services/api";
 
 const CartSummary = () => {
   const { cartSubtotal } = useCart();
@@ -10,7 +11,7 @@ const CartSummary = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
 
-  const handleApplyPromo = (e) => {
+  const handleApplyPromo = async (e) => {
     e.preventDefault();
     setErrorMsg("");
     setSuccessMsg("");
@@ -18,12 +19,26 @@ const CartSummary = () => {
     const code = promoCode.trim().toUpperCase();
     if (!code) return;
 
-    if (code === "WELCOME10" || code === "NOVELLA10") {
-      setDiscountPercent(10);
-      setSuccessMsg("10% discount applied successfully!");
-    } else {
-      setErrorMsg("Invalid promotional code.");
+    try {
+      const res = await API.post("/promos/validate", {
+        code: code,
+        cartSubtotal: cartSubtotal
+      });
+
+      // Calculate percentage discount for state routing compatibility
+      let calculatedPercent = 0;
+      if (res.data.discountType === "percentage") {
+        calculatedPercent = res.data.value;
+      } else {
+        calculatedPercent = Math.round((res.data.discountAmount / cartSubtotal) * 100);
+      }
+
+      setDiscountPercent(calculatedPercent);
+      setSuccessMsg(res.data.message || "Promo code applied successfully!");
+    } catch (err) {
+      console.error("Promo validation error:", err);
       setDiscountPercent(0);
+      setErrorMsg(err.response?.data?.message || "Invalid promotional code.");
     }
   };
 

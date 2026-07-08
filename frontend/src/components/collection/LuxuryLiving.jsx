@@ -1,7 +1,19 @@
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import ShopProductGrid from "../shop/Shopproductgrid";
 
 const LuxuryLiving = () => {
+  const { products, loading } = useProducts();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 pt-20">
+        <div className="font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+          Loading Collection...
+        </div>
+      </div>
+    );
+  }
+
   const collectionIds = [2, 4, 8, 10, 11]; // Cloud Sofa, Boucle Accent Chair, Marble Pendant, Brass Sconce, Oakwood Table
   const filteredProducts = products.filter(
     (p) => collectionIds.includes(p.id) || (p.collections && p.collections.includes("luxury-living"))

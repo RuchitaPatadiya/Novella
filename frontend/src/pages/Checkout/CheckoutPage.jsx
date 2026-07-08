@@ -2,23 +2,22 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 import { useCart } from "../../context/CartContext";
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import API from "../../services/api";
 
 const CheckoutPage = () => {
   const { user, updateProfile } = useAuth();
   const { cart, clearCart, cartSubtotal } = useCart();
+  const { products } = useProducts();
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect to login if not logged in
-  useEffect(() => {
-    if (!user) {
-      navigate("/login", { state: { from: location } });
-    }
-  }, [user, navigate, location]);
-
-  const discountPercent = location.state?.discountPercent || 0;
+  // Promo code states
+  const [promoCode, setPromoCode] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoError, setPromoError] = useState("");
+  const [promoSuccess, setPromoSuccess] = useState("");
+  const [isApplyingPromo, setIsApplyingPromo] = useState(false);
 
   // Checkout states
   const [activeStep, setActiveStep] = useState(1); // 1: Shipping, 2: Payment, 3: Success
@@ -26,57 +25,60 @@ const CheckoutPage = () => {
     name: user?.name || "",
     email: user?.email || "",
     phone: user?.phone || "",
-    address: user?.address || "",
+    street: user?.address?.street || "",
+    apartment: user?.address?.apartment || "",
+    city: user?.address?.city || "",
+    state: user?.address?.state || "",
+    zipCode: user?.address?.zipCode || "",
     method: "standard", // standard or express
   });
 
-  const [paymentForm, setPaymentForm] = useState({
-    cardName: "",
-    cardNumber: "",
-    cardExpiry: "",
-    cardCvv: "",
-  });
+  const [paymentForm, setPaymentForm] = useState({});
 
   const [formErrors, setFormErrors] = useState({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingStatus, setProcessingStatus] = useState("");
-  const [confirmedOrder, setConfirmedOrder] = useState(null);
+  const [checkoutError, setError] = useState("");
 
   if (!user) return null;
 
   // Calculate pricing details
-  const discountAmount = (cartSubtotal * discountPercent) / 100;
+  const discountAmount = appliedPromo ? appliedPromo.discountAmount : 0;
   const shippingCost = shippingForm.method === "express" ? 500 : 0;
   const grandTotal = cartSubtotal - discountAmount + shippingCost;
+
+  // Handle promo code application
+  const handleApplyPromo = async (e) => {
+    e.preventDefault();
+    if (!promoCode.trim()) return;
+
+    setPromoError("");
+    setPromoSuccess("");
+    setIsApplyingPromo(true);
+
+    try {
+      const res = await API.post("/promos/validate", {
+        code: promoCode,
+        cartSubtotal: cartSubtotal
+      });
+
+      setAppliedPromo(res.data);
+      setPromoSuccess(res.data.message || `Promo code applied successfully!`);
+    } catch (err) {
+      console.error("Promo validation error:", err);
+      setAppliedPromo(null);
+      setPromoError(err.response?.data?.message || "Invalid coupon code.");
+    } finally {
+      setIsApplyingPromo(false);
+    }
+  };
 
   const handleShippingChange = (e) => {
     setShippingForm({ ...shippingForm, [e.target.name]: e.target.value });
     setFormErrors({ ...formErrors, [e.target.name]: "" });
   };
 
-  const handlePaymentChange = (e) => {
-    let { name, value } = e.target;
 
-    // Formatting inputs
-    if (name === "cardNumber") {
-      value = value.replace(/\s?/g, "").replace(/(\d{4})/g, "$1 ").trim();
-      if (value.length > 19) return;
-    }
-    if (name === "cardExpiry") {
-      value = value.replace(/\//g, "");
-      if (value.length > 2) {
-        value = `${value.slice(0, 2)}/${value.slice(2, 4)}`;
-      }
-      if (value.length > 5) return;
-    }
-    if (name === "cardCvv") {
-      value = value.replace(/\D/g, "");
-      if (value.length > 3) return;
-    }
-
-    setPaymentForm({ ...paymentForm, [name]: value });
-    setFormErrors({ ...formErrors, [name]: "" });
-  };
 
   const handleShippingSubmit = (e) => {
     e.preventDefault();
@@ -84,7 +86,10 @@ const CheckoutPage = () => {
     if (!shippingForm.name.trim()) errors.name = "Full name is required.";
     if (!shippingForm.email.trim()) errors.email = "Email address is required.";
     if (!shippingForm.phone.trim()) errors.phone = "Phone number is required.";
-    if (!shippingForm.address.trim()) errors.address = "Shipping address is required.";
+    if (!shippingForm.street.trim()) errors.street = "Street address is required.";
+    if (!shippingForm.city.trim()) errors.city = "City is required.";
+    if (!shippingForm.state.trim()) errors.state = "State is required.";
+    if (!shippingForm.zipCode.trim()) errors.zipCode = "ZIP/Postal code is required.";
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -96,48 +101,15 @@ const CheckoutPage = () => {
 
   const handlePaymentSubmit = (e) => {
     e.preventDefault();
-    const errors = {};
-    if (!paymentForm.cardName.trim()) errors.cardName = "Cardholder name is required.";
-    if (paymentForm.cardNumber.replace(/\s/g, "").length < 16) {
-      errors.cardNumber = "Enter a valid 16-digit card number.";
-    }
-    if (paymentForm.cardExpiry.length < 5) {
-      errors.cardExpiry = "Enter a valid expiry date (MM/YY).";
-    }
-    if (paymentForm.cardCvv.length < 3) {
-      errors.cardCvv = "CVV must be 3 digits.";
-    }
-
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
-
     processOrderPlacement();
   };
 
-  // Simulated payment processing steps for rich aesthetics
+  // Launch Razorpay secure checkout flow
   const processOrderPlacement = () => {
+    setError("");
     setIsProcessing(true);
-    const statuses = [
-      "Verifying payment authorization...",
-      "Securing connection with gate...",
-      "Registering order details in Novella registry...",
-      "Configuring shipping logistics...",
-    ];
-
-    let currentStatusIdx = 0;
-    setProcessingStatus(statuses[0]);
-
-    const interval = setInterval(() => {
-      currentStatusIdx++;
-      if (currentStatusIdx < statuses.length) {
-        setProcessingStatus(statuses[currentStatusIdx]);
-      } else {
-        clearInterval(interval);
-        finalizeOrder();
-      }
-    }, 900);
+    setProcessingStatus("Initializing secure payment gateway...");
+    finalizeOrder();
   };
 
   const finalizeOrder = async () => {
@@ -173,112 +145,112 @@ const CheckoutPage = () => {
       }),
       shippingDetails: {
         name: shippingForm.name,
-        address: shippingForm.address,
+        address: {
+          street: shippingForm.street,
+          apartment: shippingForm.apartment,
+          city: shippingForm.city,
+          state: shippingForm.state,
+          zipCode: shippingForm.zipCode,
+        },
         phone: shippingForm.phone,
         method: shippingForm.method
       },
       paymentDetails: {
-        cardName: paymentForm.cardName,
-        cardNumber: `•••• •••• •••• ${paymentForm.cardNumber.slice(-4)}`
+        method: "razorpay"
       },
       pricingBreakdown: {
         subtotal: cartSubtotal,
         discount: discountAmount,
         shipping: shippingCost,
-        total: grandTotal
+        total: grandTotal,
+        promoCode: appliedPromo ? appliedPromo.code : null
       }
     };
 
     try {
-      // Save order to the live Order database collection
-      await API.post("/orders", {
-        orderId: newOrder.id,
-        date: newOrder.date,
-        total: newOrder.total,
-        items: newOrder.items,
+      // 1. Ask backend to register a secure Razorpay order transaction
+      const rzpRes = await API.post("/orders/razorpay", {
         products: newOrder.products,
         shippingDetails: newOrder.shippingDetails,
-        paymentDetails: newOrder.paymentDetails,
-        pricingBreakdown: newOrder.pricingBreakdown,
+        pricingBreakdown: newOrder.pricingBreakdown
       });
 
-      // Also save current address & phone as defaults if not already set
-      await updateProfile({
-        address: user.address || shippingForm.address,
-        phone: user.phone || shippingForm.phone,
-      });
+      const { key, razorpayOrder, pricingBreakdown: serverPricing } = rzpRes.data;
 
-      setConfirmedOrder(newOrder);
-      clearCart();
-      setIsProcessing(false);
-      setActiveStep(3);
+      // 2. Configure checkout overlay options
+      const options = {
+        key: key,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "Novella Atelier",
+        description: `Checkout transaction for order #${newOrder.id}`,
+        order_id: razorpayOrder.id,
+        handler: async function (response) {
+          try {
+            setIsProcessing(true);
+            
+            // 3. Save authorized order transaction details to database
+            await API.post("/orders", {
+              orderId: newOrder.id,
+              date: newOrder.date,
+              total: `₹${serverPricing.total.toLocaleString("en-IN")}`,
+              items: newOrder.items,
+              products: newOrder.products,
+              shippingDetails: newOrder.shippingDetails,
+              paymentDetails: {
+                method: "razorpay",
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpayOrderId: response.razorpay_order_id,
+                razorpaySignature: response.razorpay_signature
+              },
+              pricingBreakdown: serverPricing
+            });
+
+            // Also save current address & phone as defaults if not already set
+            const hasDefaultAddress = user.address && user.address.street;
+            await updateProfile({
+              address: hasDefaultAddress ? user.address : {
+                street: shippingForm.street,
+                apartment: shippingForm.apartment,
+                city: shippingForm.city,
+                state: shippingForm.state,
+                zipCode: shippingForm.zipCode,
+              },
+              phone: user.phone || shippingForm.phone,
+            });
+
+            clearCart();
+            setIsProcessing(false);
+            navigate(`/order-success/${newOrder.id}`, { replace: true });
+          } catch (err) {
+            console.error("Failed to commit paid order:", err);
+            setError(err.response?.data?.message || "Payment succeeded, but failed to create order record. Please contact support.");
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: shippingForm.name,
+          email: user.email,
+          contact: shippingForm.phone
+        },
+        theme: {
+          color: "#B49A78" // match novella bronze color!
+        },
+        modal: {
+          ondismiss: function () {
+            setIsProcessing(false);
+          }
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
     } catch (err) {
       console.error("Order processing failed:", err);
+      setError(err.response?.data?.message || "Failed to initialize secure payment. Please try again.");
       setIsProcessing(false);
     }
   };
-
-  if (activeStep === 3 && confirmedOrder) {
-    return (
-      <div className="min-h-screen bg-background pt-[76px] flex items-center justify-center px-6 md:px-14 py-16">
-        <div className="w-full max-w-xl bg-surface border border-border p-8 md:p-12 text-center relative overflow-hidden animate-fadeIn">
-          <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-bronze via-gold to-bronze" />
-
-          {/* Success Icon */}
-          <div className="w-16 h-16 rounded-full bg-bronze/10 border border-bronze/20 text-bronze flex items-center justify-center mx-auto mb-6">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-
-          <div className="flex items-center justify-center gap-2.5 mb-3">
-            <span className="block w-5 h-px bg-bronze" />
-            <span className="font-body font-normal text-[0.55rem] tracking-[0.38em] uppercase text-bronze">
-              Order Confirmed
-            </span>
-            <span className="block w-5 h-px bg-bronze" />
-          </div>
-
-          <h1 className="font-display font-light text-3xl md:text-4xl text-ink leading-tight mb-4">
-            Thank you for your order
-          </h1>
-
-          <p className="font-body font-light text-[0.85rem] text-muted leading-relaxed max-w-md mx-auto mb-8">
-            Your payment was authorized, and order <strong className="text-ink font-medium">{confirmedOrder.id}</strong> has been registered. We’ve sent a confirmation summary and shipping tracking details to your email.
-          </p>
-
-          {/* Details list */}
-          <div className="bg-background border border-border p-6 text-left space-y-3 mb-8 font-body text-xs text-ink/80">
-            <div className="flex justify-between">
-              <span className="text-muted font-light">Order ID:</span>
-              <span className="font-medium">{confirmedOrder.id}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted font-light">Delivery Estimate:</span>
-              <span className="font-medium">4 - 7 Business Days</span>
-            </div>
-            <div className="flex justify-between border-t border-border/60 pt-3 text-sm">
-              <span className="text-muted font-light">Grand Total:</span>
-              <span className="text-bronze font-semibold">{confirmedOrder.total}</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/profile" className="no-underline">
-              <button className="w-full sm:w-auto bg-ink text-cream-muted font-body font-medium text-[0.65rem] tracking-[0.2em] uppercase px-8 py-3.5 hover:bg-gold hover:text-dark transition-all duration-300 cursor-pointer">
-                View Account Orders
-              </button>
-            </Link>
-            <Link to="/shop" className="no-underline">
-              <button className="w-full sm:w-auto bg-transparent border border-border text-ink hover:border-bronze hover:text-bronze font-body font-medium text-[0.65rem] tracking-[0.2em] uppercase px-8 py-3.5 transition-all duration-300 cursor-pointer">
-                Continue Shopping
-              </button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background pt-[76px] pb-16">
@@ -301,7 +273,14 @@ const CheckoutPage = () => {
         </div>
       )}
 
-      {/* Breadcrumbs */}
+      {/* Checkout Error Banner */}
+      {checkoutError && (
+        <div className="mx-[clamp(1.5rem,5vw,4rem)] mt-4 bg-red-50 border border-red-200 text-red-800 px-5 py-3 rounded-[2px] font-body text-sm flex items-center justify-between">
+          <span>{checkoutError}</span>
+          <button onClick={() => setError("")} className="text-red-400 hover:text-red-600 bg-transparent border-0 text-lg cursor-pointer">×</button>
+        </div>
+      )}
+
       <div className="px-[clamp(1.5rem,5vw,4rem)] py-5 border-b border-border bg-background">
         <div className="flex items-center gap-2 font-body text-[0.68rem] tracking-[0.18em] uppercase text-muted">
           <Link to="/cart" className="hover:text-bronze transition-colors duration-200 no-underline text-current">
@@ -405,19 +384,84 @@ const CheckoutPage = () => {
                       </div>
                     </div>
 
-                    <div className="space-y-1">
-                      <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                        Shipping Address
-                      </label>
-                      <textarea
-                        name="address"
-                        value={shippingForm.address}
-                        onChange={handleShippingChange}
-                        rows="3"
-                        placeholder="House/Apartment no., Street, City, State, ZIP code"
-                        className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 resize-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
-                      />
-                      {formErrors.address && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.address}</p>}
+                    <div className="space-y-4">
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          Street Address
+                        </label>
+                        <input
+                          type="text"
+                          name="street"
+                          value={shippingForm.street}
+                          onChange={handleShippingChange}
+                          placeholder="Flat, House no., Building, Company, Staff quarter"
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                        />
+                        {formErrors.street && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.street}</p>}
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            Apartment, suite, unit (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            name="apartment"
+                            value={shippingForm.apartment}
+                            onChange={handleShippingChange}
+                            placeholder="e.g. Apt 4B, Floor 2"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            Town / City
+                          </label>
+                          <input
+                            type="text"
+                            name="city"
+                            value={shippingForm.city}
+                            onChange={handleShippingChange}
+                            placeholder="e.g. Mumbai"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                          />
+                          {formErrors.city && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.city}</p>}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            State
+                          </label>
+                          <input
+                            type="text"
+                            name="state"
+                            value={shippingForm.state}
+                            onChange={handleShippingChange}
+                            placeholder="e.g. Maharashtra"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                          />
+                          {formErrors.state && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.state}</p>}
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            ZIP / Postal Code
+                          </label>
+                          <input
+                            type="text"
+                            name="zipCode"
+                            value={shippingForm.zipCode}
+                            onChange={handleShippingChange}
+                            placeholder="e.g. 400001"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                          />
+                          {formErrors.zipCode && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.zipCode}</p>}
+                        </div>
+                      </div>
                     </div>
 
                     {/* Shipping option */}
@@ -493,66 +537,23 @@ const CheckoutPage = () => {
 
                 {activeStep === 2 && (
                   <form onSubmit={handlePaymentSubmit} className="p-6 md:p-8 space-y-6 animate-fadeIn">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-1">
-                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                          Cardholder Name
-                        </label>
-                        <input
-                          type="text"
-                          name="cardName"
-                          value={paymentForm.cardName}
-                          onChange={handlePaymentChange}
-                          placeholder="e.g. Eleanor Vance"
-                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
-                        />
-                        {formErrors.cardName && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.cardName}</p>}
+                    <div className="bg-[#FDFBF7] border border-border/80 p-5 rounded-[2px] space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-bronze/10 flex items-center justify-center text-bronze">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0110 0v4" />
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="font-body text-xs font-semibold text-ink block">Secure Gateway Checkout</span>
+                          <span className="font-body text-[0.7rem] text-muted block mt-0.5">Transactions are encrypted and processed by Razorpay.</span>
+                        </div>
                       </div>
 
-                      <div className="space-y-1">
-                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                          Card Number
-                        </label>
-                        <input
-                          type="text"
-                          name="cardNumber"
-                          value={paymentForm.cardNumber}
-                          onChange={handlePaymentChange}
-                          placeholder="XXXX XXXX XXXX XXXX"
-                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
-                        />
-                        {formErrors.cardNumber && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.cardNumber}</p>}
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                          Expiry Date (MM/YY)
-                        </label>
-                        <input
-                          type="text"
-                          name="cardExpiry"
-                          value={paymentForm.cardExpiry}
-                          onChange={handlePaymentChange}
-                          placeholder="MM/YY"
-                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
-                        />
-                        {formErrors.cardExpiry && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.cardExpiry}</p>}
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                          CVV
-                        </label>
-                        <input
-                          type="password"
-                          name="cardCvv"
-                          value={paymentForm.cardCvv}
-                          onChange={handlePaymentChange}
-                          placeholder="•••"
-                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
-                        />
-                        {formErrors.cardCvv && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.cardCvv}</p>}
-                      </div>
+                      <p className="font-body font-light text-[0.75rem] text-muted leading-relaxed m-0">
+                        Supports Indian Credit & Debit Cards, Unified Payments Interface (UPI), Netbanking, and popular digital wallets.
+                      </p>
                     </div>
 
                     <div className="flex gap-4 items-center">
@@ -560,7 +561,7 @@ const CheckoutPage = () => {
                         type="submit"
                         className="bg-ink text-cream-muted font-body font-medium text-[0.65rem] tracking-[0.2em] uppercase px-8 py-3.5 transition-all duration-300 hover:bg-gold hover:text-dark cursor-pointer rounded-[2px]"
                       >
-                        Place Order (₹{grandTotal.toLocaleString("en-IN")})
+                        Proceed to Pay (₹{grandTotal.toLocaleString("en-IN")})
                       </button>
                       <button
                         type="button"
@@ -604,6 +605,35 @@ const CheckoutPage = () => {
                 })}
               </div>
 
+              {/* Promo Code Input Form */}
+              <div className="border-t border-border/60 pt-4.5 space-y-2">
+                <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Promo Code</label>
+                <form onSubmit={handleApplyPromo} className="flex gap-2">
+                  <input
+                    type="text"
+                    value={promoCode}
+                    onChange={(e) => setPromoCode(e.target.value)}
+                    placeholder="e.g. WELCOME10"
+                    disabled={isApplyingPromo}
+                    className="flex-1 bg-background border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] uppercase"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isApplyingPromo || !promoCode.trim()}
+                    className="px-4 bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-wider uppercase border-0 cursor-pointer transition-colors duration-200 rounded-[2px] disabled:opacity-40"
+                  >
+                    {isApplyingPromo ? "..." : "Apply"}
+                  </button>
+                </form>
+
+                {promoError && (
+                  <p className="font-body text-[0.68rem] text-red-700 m-0">{promoError}</p>
+                )}
+                {promoSuccess && (
+                  <p className="font-body text-[0.68rem] text-emerald-800 m-0 font-medium">{promoSuccess}</p>
+                )}
+              </div>
+
               {/* Price Details */}
               <div className="border-t border-border/60 pt-4 space-y-3 font-body text-[0.78rem]">
                 <div className="flex justify-between items-center text-muted">
@@ -612,8 +642,8 @@ const CheckoutPage = () => {
                 </div>
 
                 {discountAmount > 0 && (
-                  <div className="flex justify-between items-center text-emerald-700">
-                    <span className="font-light">Discount ({discountPercent}%)</span>
+                  <div className="flex justify-between items-center text-emerald-800 font-medium">
+                    <span className="font-light">Discount ({appliedPromo?.code})</span>
                     <span className="font-medium">-₹{discountAmount.toLocaleString("en-IN")}</span>
                   </div>
                 )}

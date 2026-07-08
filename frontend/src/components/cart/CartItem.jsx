@@ -1,9 +1,10 @@
 import { Link } from "react-router-dom";
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import { useCart } from "../../context/CartContext";
 
 const CartItem = ({ item }) => {
   const { updateQuantity, removeFromCart } = useCart();
+  const { products } = useProducts();
   const product = products.find((p) => p.id === item.id);
 
   if (!product) return null;

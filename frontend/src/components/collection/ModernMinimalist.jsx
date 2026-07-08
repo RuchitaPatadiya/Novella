@@ -1,7 +1,19 @@
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import ShopProductGrid from "../shop/Shopproductgrid";
 
 const ModernMinimalist = () => {
+  const { products, loading } = useProducts();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 pt-20">
+        <div className="font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+          Loading Collection...
+        </div>
+      </div>
+    );
+  }
+
   const collectionIds = [1, 2, 3, 6, 12]; // Arco Lamp, Cloud Sofa, Travertine Table, Ceramic Vases, Abstract Canvas
   const filteredProducts = products.filter(
     (p) => collectionIds.includes(p.id) || (p.collections && p.collections.includes("modern-minimalist"))

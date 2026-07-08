@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { spacesData } from "../../utils/spaceData";
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import BrandStrip from "../../components/home/BrandStrip";
 import { useWishlist } from "../../context/WishlistContext";
 
 const SpaceDetailPage = () => {
   const { spaceId } = useParams();
+  const { products, loading } = useProducts();
   const space = spacesData.find((s) => s.id === spaceId);
 
   const [visible, setVisible] = useState(false);
@@ -18,6 +19,15 @@ const SpaceDetailPage = () => {
     const t = setTimeout(() => setVisible(true), 100);
     return () => clearTimeout(t);
   }, [spaceId]);
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 pt-20">
+        <div className="font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+          Loading space details...
+        </div>
+      </div>
+    );
+  }
 
   if (!space) {
     return (

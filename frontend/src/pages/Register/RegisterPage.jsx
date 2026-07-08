@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { GoogleLogin } from "@react-oauth/google";
 
 const RegisterPage = () => {
-  const { register, error: authError } = useAuth();
+  const { register, loginWithGoogle, error: authError } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [formData, setFormData] = useState({
@@ -14,8 +15,22 @@ const RegisterPage = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const from = location.state?.from?.pathname || "/profile";
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      setError("");
+      await loginWithGoogle(credentialResponse.credential);
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.message || "Google registration failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -36,8 +51,17 @@ const RegisterPage = () => {
       return;
     }
 
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters long.");
+    const passwordError = (() => {
+      if (password.length < 8) return "Password must be at least 8 characters long.";
+      if (!/[A-Z]/.test(password)) return "Password must contain at least one uppercase letter.";
+      if (!/[a-z]/.test(password)) return "Password must contain at least one lowercase letter.";
+      if (!/[0-9]/.test(password)) return "Password must contain at least one number.";
+      if (!/[!@#$%^&*(),.?":{}|<>]/.test(password)) return "Password must contain at least one special character (e.g. !, @, #, $, %).";
+      return null;
+    })();
+
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 
@@ -121,30 +145,48 @@ const RegisterPage = () => {
             <label className="font-body font-normal text-[0.62rem] tracking-[0.18em] uppercase text-muted block mb-1">
               Password
             </label>
-            <input
-              type="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder="Min. 6 characters"
-              className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Min. 6 characters"
+                className="w-full bg-background border border-border pl-4 pr-12 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink font-body text-[0.62rem] tracking-widest uppercase transition-colors duration-200 focus:outline-none bg-transparent border-0 cursor-pointer"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           <div className="space-y-1 relative">
             <label className="font-body font-normal text-[0.62rem] tracking-[0.18em] uppercase text-muted block mb-1">
               Confirm Password
             </label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              placeholder="Re-enter password"
-              className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                placeholder="Re-enter password"
+                className="w-full bg-background border border-border pl-4 pr-12 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-ink font-body text-[0.62rem] tracking-widest uppercase transition-colors duration-200 focus:outline-none bg-transparent border-0 cursor-pointer"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
+            </div>
           </div>
 
           <button
@@ -173,6 +215,21 @@ const RegisterPage = () => {
             )}
           </button>
         </form>
+
+        <div className="relative my-6 flex items-center justify-center">
+          <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border/80" /></div>
+          <span className="relative bg-surface px-4 font-body text-[0.62rem] tracking-[0.2em] uppercase text-muted">Or continue with</span>
+        </div>
+
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError("Google registration failed.")}
+            theme="outline"
+            shape="square"
+            size="large"
+          />
+        </div>
 
         <div className="mt-8 pt-6 border-t border-border/60 text-center">
           <p className="font-body font-light text-[0.8rem] text-muted">

@@ -1,7 +1,19 @@
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import ShopProductGrid from "../shop/Shopproductgrid";
 
 const Scandinavian = () => {
+  const { products, loading } = useProducts();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 pt-20">
+        <div className="font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+          Loading Collection...
+        </div>
+      </div>
+    );
+  }
+
   const collectionIds = [2, 3, 4, 7, 11]; // Sofa, Travertine Table, Boucle Chair, Linen Throw, Oakwood Dining Table
   const filteredProducts = products.filter(
     (p) => collectionIds.includes(p.id) || (p.collections && p.collections.includes("scandinavian"))

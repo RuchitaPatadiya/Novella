@@ -1,7 +1,19 @@
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 import ShopProductGrid from "../shop/Shopproductgrid";
 
 const BohoChic = () => {
+  const { products, loading } = useProducts();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 pt-20">
+        <div className="font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+          Loading Collection...
+        </div>
+      </div>
+    );
+  }
+
   const collectionIds = [5, 6, 7, 9]; // Rattan Mirror, Ceramic Vases, Linen Throw, Jute Rug
   const filteredProducts = products.filter(
     (p) => collectionIds.includes(p.id) || (p.collections && p.collections.includes("boho-chic"))

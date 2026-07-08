@@ -1,10 +1,11 @@
 import React, { useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCart } from "../../context/CartContext";
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 
 const CartDrawer = () => {
   const { cart, isCartOpen, setIsCartOpen, removeFromCart, updateQuantity, cartSubtotal, cartCount } = useCart();
+  const { products } = useProducts();
   const navigate = useNavigate();
   const drawerRef = useRef(null);
 

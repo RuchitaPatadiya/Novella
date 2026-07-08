@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { products } from "../utils/mockData";
+import { useProducts } from "./ProductContext";
 import { useAuth } from "./AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 
@@ -9,6 +9,7 @@ export const CartProvider = ({ children }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { products } = useProducts();
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 

@@ -24,7 +24,7 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
       default: "Processing",
-      enum: ["Processing", "Shipped", "Delivered"],
+      enum: ["Processing", "Shipped", "Delivered", "Cancelled", "Return Requested", "Returned"],
     },
     items: {
       type: String,
@@ -43,13 +43,20 @@ const orderSchema = new mongoose.Schema(
     ],
     shippingDetails: {
       name: { type: String, required: true },
-      address: { type: String, required: true },
+      address: {
+        street: { type: String, default: "" },
+        apartment: { type: String, default: "" },
+        city: { type: String, default: "" },
+        state: { type: String, default: "" },
+        zipCode: { type: String, default: "" },
+      },
       phone: { type: String, required: true },
       method: { type: String, required: true }, // e.g., "standard" or "express"
     },
     paymentDetails: {
-      cardName: { type: String, required: true },
-      cardNumber: { type: String, required: true }, // masked stub e.g. "•••• •••• •••• 4242"
+      paymentMethod: { type: String, required: true, enum: ["Card", "UPI", "COD", "Razorpay"], default: "Razorpay" },
+      paymentStatus: { type: String, required: true, enum: ["Pending", "Paid"], default: "Paid" },
+      transactionToken: { type: String, default: "" },
     },
     pricingBreakdown: {
       subtotal: { type: Number, required: true },

@@ -1,29 +1,55 @@
 @import "tailwindcss";
 
-/* ── Novella · Warm Atelier (Option 1) ── */
+:root {
+  --background: #fdfaf6;
+  --surface: #f5f0e8;
+  --ink: #2c2416;
+  --border: #e8e0d5;
+  --muted: #8a7d6b;
+  --dark: #13100a;
+  --dark-deep: #0d0a06;
+}
+
+.dark {
+  --background: #110e0a;
+  --surface: #1a1610;
+  --ink: #f8f4eb;
+  --border: #2e261b;
+  --muted: #9e917f;
+  --dark: #f8f4eb;
+  --dark-deep: #ffffff;
+}
+
+/* ── Novella · Warm Atelier ── */
 @theme {
   /* Backgrounds */
-  --color-background: #fdfaf6;
-  --color-surface: #f5f0e8;
+  --color-background: var(--background);
+  --color-surface: var(--surface);
 
   /* Dark sections */
-  --color-dark: #13100a;
-  --color-dark-deep: #0d0a06;
+  --color-dark: var(--dark);
+  --color-dark-deep: var(--dark-deep);
 
   /* Accents */
   --color-gold: #c9a84c;
   --color-bronze: #b07d3a;
 
   /* Text */
-  --color-ink: #2c2416;
-  --color-cream: #faf0e0;
-  --color-cream-muted: #f0e6d3;
-  --color-muted: #8a7d6b;
+  --color-ink: var(--ink);
+  --color-cream: #faf0e0;         /* Restored to static warm cream light for dark hero elements */
+  --color-cream-muted: #f0e6d3;   /* Restored to static cream muted light for secondary hero text */
+  --color-muted: var(--muted);
 
   /* Borders */
-  --color-border: #e8e0d5;
+  --color-border: var(--border);
 
   /* Typography */
   --font-display: "Cormorant Garamond", serif;
   --font-body: "Jost", sans-serif;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--ink);
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
 }

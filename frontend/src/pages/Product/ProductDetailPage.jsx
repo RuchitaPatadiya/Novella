@@ -1,15 +1,17 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { products } from "../../utils/mockData";
 import BrandStrip from "../../components/home/BrandStrip";
 import { useWishlist } from "../../context/WishlistContext";
 import { useCart } from "../../context/CartContext";
 import { useAuth } from "../../context/AuthContext";
 import { useProducts } from "../../context/ProductContext";
 import API from "../../services/api";
+import DOMPurify from "dompurify";
+import { ProductDetailSkeleton } from "../../components/common/Skeleton";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
+  const { products, loading, refreshProducts } = useProducts();
   const product = products.find((p) => p.id === parseInt(id));
 
   // State for active image in the gallery
@@ -27,7 +29,6 @@ const ProductDetailPage = () => {
   const { toggleWishlist, isInWishlist } = useWishlist();
   const { addToCart } = useCart();
   const { user } = useAuth();
-  const { refreshProducts } = useProducts();
 
   // Reviews and ratings list state
   const [reviews, setReviews] = useState([]);
@@ -37,6 +38,8 @@ const ProductDetailPage = () => {
   const [reviewError, setReviewError] = useState("");
   const [reviewSuccess, setReviewSuccess] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewEligibility, setReviewEligibility] = useState({ canReview: false, reason: "Loading eligibility status..." });
+  const [checkingEligibility, setCheckingEligibility] = useState(false);
 
   // Fetch reviews on load/change
   useEffect(() => {
@@ -60,6 +63,30 @@ const ProductDetailPage = () => {
     }
   }, [id]);
 
+  // Check user eligibility for review submission
+  useEffect(() => {
+    const checkEligibility = async () => {
+      if (!user) {
+        setReviewEligibility({ canReview: false, reason: "Please log in to leave a review." });
+        return;
+      }
+      setCheckingEligibility(true);
+      try {
+        const res = await API.get(`/products/${id}/review-eligibility`);
+        setReviewEligibility(res.data);
+      } catch (err) {
+        console.error("Failed to check review eligibility:", err);
+        setReviewEligibility({ canReview: false, reason: "Unable to verify purchase history." });
+      } finally {
+        setCheckingEligibility(false);
+      }
+    };
+
+    if (id) {
+      checkEligibility();
+    }
+  }, [id, user]);
+
   const handleReviewSubmit = async (e) => {
     e.preventDefault();
     setReviewError("");
@@ -78,8 +105,8 @@ const ProductDetailPage = () => {
         comment: userComment,
       });
 
-      setReviews((prev) => [res.data, ...prev]);
-      setReviewSuccess("Review posted successfully! Thank you for your feedback.");
+      setReviewSuccess(res.data.message || "Your review has been submitted for moderation and will appear live once approved.");
+      setReviewEligibility({ canReview: false, reason: "You have already submitted a review for this piece." });
       setUserComment("");
       setUserRating(5);
 
@@ -101,6 +128,9 @@ const ProductDetailPage = () => {
     setQuantity(1);
     setCartState("idle");
   }, [id]);
+  if (loading) {
+    return <ProductDetailSkeleton />;
+  }
 
   if (!product) {
     return (
@@ -262,28 +292,50 @@ const ProductDetailPage = () => {
               )}
             </div>
 
+            {/* Stock status indicator */}
+            <div className="font-body text-xs mb-7">
+              {product.stock === 0 ? (
+                <span className="text-red-700 bg-red-50 border border-red-200/50 px-2.5 py-1.5 uppercase text-[0.6rem] tracking-wider font-semibold rounded-xs">
+                  Out of Stock
+                </span>
+              ) : product.stock <= 3 ? (
+                <span className="text-bronze font-medium bg-bronze/5 border border-bronze/20 px-2.5 py-1.5 rounded-xs">
+                  Only {product.stock} pieces left in stock — order soon
+                </span>
+              ) : (
+                <span className="text-emerald-700 font-medium bg-emerald-50 border border-emerald-200/40 px-2.5 py-1.5 rounded-xs">
+                  In Stock
+                </span>
+              )}
+            </div>
+
             {/* Divider */}
             <div className="w-full h-px bg-border mb-7" />
 
-            {/* Description */}
-            <p className="font-body font-light text-[0.88rem] leading-[1.8] text-muted m-0 mb-8">
-              {product.description}
-            </p>
+            {/* Description (Sanitized HTML to prevent XSS) */}
+            <div 
+              className="font-body font-light text-[0.88rem] leading-[1.8] text-muted m-0 mb-8 space-y-4"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description || "") }}
+            />
 
             {/* Cart Box */}
             <div className="flex flex-col sm:flex-row gap-4 mb-9">
               {/* Quantity Selection */}
               <div className="flex items-center justify-between border border-border h-12 px-4 sm:w-32 bg-surface">
                 <button
+                  type="button"
+                  disabled={product.stock === 0}
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="bg-transparent border-0 cursor-pointer font-body font-light text-lg text-ink hover:text-bronze p-1"
+                  className="bg-transparent border-0 cursor-pointer font-body font-light text-lg text-ink hover:text-bronze p-1 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   —
                 </button>
-                <span className="font-body font-medium text-sm text-ink">{quantity}</span>
+                <span className="font-body font-medium text-sm text-ink">{product.stock === 0 ? 0 : quantity}</span>
                 <button
-                  onClick={() => setQuantity((q) => q + 1)}
-                  className="bg-transparent border-0 cursor-pointer font-body font-light text-lg text-ink hover:text-bronze p-1"
+                  type="button"
+                  disabled={product.stock === 0 || quantity >= product.stock}
+                  onClick={() => setQuantity((q) => Math.min(product.stock, q + 1))}
+                  className="bg-transparent border-0 cursor-pointer font-body font-light text-lg text-ink hover:text-bronze p-1 disabled:opacity-30 disabled:cursor-not-allowed"
                 >
                   +
                 </button>
@@ -292,16 +344,18 @@ const ProductDetailPage = () => {
               {/* Add to Cart Button */}
               <button
                 onClick={handleAddToCart}
-                disabled={cartState !== "idle"}
+                disabled={cartState !== "idle" || product.stock === 0}
                 className={`flex-1 h-12 relative overflow-hidden transition-all duration-300 font-body font-medium text-xs tracking-widest uppercase cursor-pointer border ${
                   cartState === "idle"
-                    ? "border-bronze bg-bronze text-background hover:brightness-110"
+                    ? product.stock === 0
+                      ? "border-border bg-border/20 text-muted/60 cursor-not-allowed"
+                      : "border-bronze bg-bronze text-background hover:brightness-110"
                     : cartState === "adding"
                     ? "border-border bg-surface text-ink cursor-default"
                     : "border-emerald-600 bg-emerald-600 text-white cursor-default"
                 }`}
               >
-                {cartState === "idle" && "Add to Cart"}
+                {cartState === "idle" && (product.stock === 0 ? "Out of Stock" : "Add to Cart")}
                 {cartState === "adding" && (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="animate-spin h-4 w-4 text-ink" viewBox="0 0 24 24" fill="none">
@@ -382,9 +436,10 @@ const ProductDetailPage = () => {
                 </button>
                 {activeAccordion === "care" && (
                   <div className="pb-5 pt-1 animate-fadeIn">
-                    <p className="font-body font-light text-[0.8rem] leading-[1.7] text-muted m-0">
-                      {product.careInstructions}
-                    </p>
+                    <div 
+                      className="font-body font-light text-[0.8rem] leading-[1.7] text-muted m-0 space-y-2"
+                      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.careInstructions || "") }}
+                    />
                   </div>
                 )}
               </div>
@@ -479,7 +534,33 @@ const ProductDetailPage = () => {
                 </div>
               )}
 
-              {user ? (
+              {checkingEligibility ? (
+                <div className="text-center py-8">
+                  <div className="w-5 h-5 border-2 border-bronze border-t-transparent rounded-full animate-spin mx-auto mb-2.5" />
+                  <p className="font-body text-xs text-muted m-0">Verifying customer eligibility...</p>
+                </div>
+              ) : !user ? (
+                <div className="bg-surface border border-border p-4.5 text-center rounded-[2px]">
+                  <p className="font-body text-xs text-muted leading-relaxed m-0 mb-3.5">
+                    You must hold an active account to review this piece.
+                  </p>
+                  <Link to="/login" className="no-underline">
+                    <span className="px-5 py-2.5 bg-ink text-background hover:bg-bronze font-body font-medium text-[0.62rem] tracking-widest uppercase transition-colors duration-200 block rounded-[2px]">
+                      Log In to Write Review
+                    </span>
+                  </Link>
+                </div>
+              ) : !reviewEligibility.canReview ? (
+                <div className="bg-[#FDFBF7] border border-border/75 p-5 text-center rounded-[2px] space-y-2">
+                  <svg className="w-5 h-5 text-bronze/60 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                  <h5 className="font-body text-[0.68rem] font-medium tracking-wide uppercase text-ink m-0">Form Restricted</h5>
+                  <p className="font-body text-[0.68rem] text-muted m-0 leading-relaxed max-w-[240px] mx-auto">
+                    {reviewEligibility.reason}
+                  </p>
+                </div>
+              ) : (
                 <form onSubmit={handleReviewSubmit} className="flex flex-col gap-4">
                   {/* Stars select */}
                   <div>
@@ -527,17 +608,6 @@ const ProductDetailPage = () => {
                     {isSubmittingReview ? "Submitting Review..." : "Submit Review"}
                   </button>
                 </form>
-              ) : (
-                <div className="bg-surface border border-border p-4.5 text-center rounded-[2px]">
-                  <p className="font-body text-xs text-muted leading-relaxed m-0 mb-3.5">
-                    You must hold an active account to review this piece.
-                  </p>
-                  <Link to="/login" className="no-underline">
-                    <span className="px-5 py-2.5 bg-ink text-background hover:bg-bronze font-body font-medium text-[0.62rem] tracking-widest uppercase transition-colors duration-200 block rounded-[2px]">
-                      Log In to Write Review
-                    </span>
-                  </Link>
-                </div>
               )}
             </div>
           </div>
@@ -561,9 +631,19 @@ const ProductDetailPage = () => {
                 {reviews.map((rev) => (
                   <div key={rev._id} className="border-b border-border/50 pb-5 last:border-0 last:pb-0 animate-fadeIn">
                     <div className="flex items-center justify-between gap-4 mb-2.5">
-                      <span className="font-body font-medium text-xs text-ink">
-                        {rev.name}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-body font-medium text-xs text-ink">
+                          {rev.name}
+                        </span>
+                        {rev.isVerifiedBuyer && (
+                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200/40 text-[0.55rem] font-body font-medium px-1.5 py-0.5 rounded-sm uppercase tracking-wider scale-90 origin-left">
+                            <svg className="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Verified Buyer
+                          </span>
+                        )}
+                      </div>
                       <span className="font-body text-[0.68rem] text-muted font-light">
                         {new Date(rev.createdAt).toLocaleDateString("en-US", {
                           year: "numeric",

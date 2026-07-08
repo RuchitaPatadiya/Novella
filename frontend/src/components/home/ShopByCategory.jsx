@@ -1,39 +1,44 @@
 import { Link } from "react-router-dom";
+import { useProducts } from "../../context/ProductContext";
 
-const categories = [
+const categoriesTemplate = [
   {
     id: "furniture",
     label: "Furniture",
-    count: "320+ pieces",
     image: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=700&q=85",
   },
   {
     id: "lighting",
     label: "Lighting",
-    count: "180+ pieces",
     image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=700&q=85",
   },
   {
     id: "textiles",
     label: "Textiles",
-    count: "200+ pieces",
     image: "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=700&q=85",
   },
   {
     id: "wall-decor",
     label: "Wall Decor",
-    count: "140+ pieces",
     image: "https://images.unsplash.com/photo-1618220179428-22790b461013?w=700&q=85",
   },
   {
     id: "decor-accessories",
     label: "Decor",
-    count: "400+ pieces",
     image: "https://images.unsplash.com/photo-1612196808214-b8e1d6145a8c?w=700&q=85",
   },
 ];
 
 export default function ShopByCategory() {
+  const { products } = useProducts();
+
+  const categories = categoriesTemplate.map((cat) => {
+    const count = products.filter((p) => p.category === cat.id).length;
+    return {
+      ...cat,
+      count: `${count} piece${count !== 1 ? "s" : ""}`,
+    };
+  });
   return (
     <section className="bg-background py-16 md:py-20">
       <div className="px-[clamp(1.5rem,5vw,4rem)]">

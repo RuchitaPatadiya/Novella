@@ -17,38 +17,84 @@ import WishlistPage from './pages/Wishlist/WishlistPage'
 import CartPage from './pages/Cart/CartPage'
 import LoginPage from './pages/Login/LoginPage'
 import RegisterPage from './pages/Register/RegisterPage'
+import ForgotPasswordPage from './pages/ForgotPassword/ForgotPasswordPage'
+import ResetPasswordPage from './pages/ResetPassword/ResetPasswordPage'
 import ProfilePage from './pages/Profile/ProfilePage'
 import CheckoutPage from './pages/Checkout/CheckoutPage'
+import OrderSuccessPage from './pages/OrderSuccess/OrderSuccessPage'
 import CartDrawer from './components/cart/CartDrawer'
 import AdminPage from './pages/Admin/AdminPage'
+import ProtectedRoute from './components/common/ProtectedRoute'
 
 function App() {
-
   return (
-    <div>
-      <Navbar />
-      <CartDrawer />
-      <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/shop" element={<ShopPage />} />
-      <Route path="/shop/:categoryId" element={<ShopCategoryPage />} />
-      <Route path="/product/:id" element={<ProductDetailPage />} />
-      <Route path="/spaces" element={<SpacePage />} />
-      <Route path="/spaces/:spaceId" element={<SpaceDetailPage />} />
-      <Route path="/collections" element={<CollectionPage />} />
-      <Route path="/collections/:collectionId" element={<CollectionDetailPage />} />
-      <Route path="/about" element={<AboutPage />} />
-      <Route path="/contact" element={<ContactPage />} />
-      <Route path="/wishlist" element={<WishlistPage />} />
-      <Route path="/cart" element={<CartPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="/profile" element={<ProfilePage />} />
-      <Route path="/checkout" element={<CheckoutPage />} />
-      <Route path="/admin" element={<AdminPage />} />
+    <Routes>
+      {/* Fullscreen Admin Route (No Navbar or Footer) */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute adminOnly={true}>
+            <AdminPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Main consumer application layout wrapper */}
+      <Route
+        path="/*"
+        element={
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <CartDrawer />
+            <main className="flex-grow">
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/shop" element={<ShopPage />} />
+                <Route path="/shop/:categoryId" element={<ShopCategoryPage />} />
+                <Route path="/product/:id" element={<ProductDetailPage />} />
+                <Route path="/spaces" element={<SpacePage />} />
+                <Route path="/spaces/:spaceId" element={<SpaceDetailPage />} />
+                <Route path="/collections" element={<CollectionPage />} />
+                <Route path="/collections/:collectionId" element={<CollectionDetailPage />} />
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/wishlist" element={<WishlistPage />} />
+                <Route path="/cart" element={<CartPage />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
+                <Route
+                  path="/profile"
+                  element={
+                    <ProtectedRoute>
+                      <ProfilePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/checkout"
+                  element={
+                    <ProtectedRoute>
+                      <CheckoutPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/order-success/:orderId"
+                  element={
+                    <ProtectedRoute>
+                      <OrderSuccessPage />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        }
+      />
     </Routes>
-      <Footer />
-    </div>
 
     
   

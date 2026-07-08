@@ -26,6 +26,14 @@ const reviewSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    isApproved: {
+      type: Boolean,
+      default: false,
+    },
+    isVerifiedBuyer: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -38,7 +46,7 @@ reviewSchema.index({ user: 1, product: 1 }, { unique: true });
 // Static method to calculate average rating and update product document
 reviewSchema.statics.calculateAverageRating = async function (productId) {
   const stats = await this.aggregate([
-    { $match: { product: productId } },
+    { $match: { product: productId, isApproved: true } },
     {
       $group: {
         _id: "$product",

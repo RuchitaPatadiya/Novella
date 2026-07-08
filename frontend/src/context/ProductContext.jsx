@@ -53,6 +53,37 @@ export const ProductProvider = ({ children }) => {
     }
   };
 
+  // Update an existing product (Admin Only)
+  const editProduct = async (id, productData) => {
+    try {
+      const res = await API.put(`/products/${id}`, productData);
+      setProducts((prev) => {
+        const updated = prev.map((p) => (p.id === id ? res.data : p));
+        setMockProducts(updated);
+        return updated;
+      });
+      return res.data;
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Failed to update product.";
+      throw new Error(errMsg);
+    }
+  };
+
+  // Delete a product from the catalog (Admin Only)
+  const deleteProduct = async (id) => {
+    try {
+      await API.delete(`/products/${id}`);
+      setProducts((prev) => {
+        const updated = prev.filter((p) => p.id !== id);
+        setMockProducts(updated);
+        return updated;
+      });
+    } catch (err) {
+      const errMsg = err.response?.data?.message || "Failed to remove product.";
+      throw new Error(errMsg);
+    }
+  };
+
   return (
     <ProductContext.Provider
       value={{
@@ -60,6 +91,8 @@ export const ProductProvider = ({ children }) => {
         loading,
         error,
         addProduct,
+        editProduct,
+        deleteProduct,
         refreshProducts: fetchProducts,
       }}
     >

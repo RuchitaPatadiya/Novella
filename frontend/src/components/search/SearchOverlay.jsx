@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { products } from "../../utils/mockData";
+import { useProducts } from "../../context/ProductContext";
 
 const trendingSearches = ["Sofa", "Travertine", "Pendant", "Armchair", "Linen", "Vase"];
 
@@ -14,6 +14,7 @@ const categoriesList = [
 
 export default function SearchOverlay({ isOpen, onClose }) {
   const [query, setQuery] = useState("");
+  const { products } = useProducts();
   const inputRef = useRef(null);
 
   useEffect(() => {

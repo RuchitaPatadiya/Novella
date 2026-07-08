@@ -1,6 +1,7 @@
-import { useRef } from "react";
+import { useRef, useState, useEffect } from "react";
+import API from "../../services/api";
 
-const reviews = [
+const staticReviews = [
   {
     id: 1,
     quote: "The plaster arc pendant completely changed our dining room. It is the first thing every guest notices.",
@@ -57,6 +58,29 @@ const ReviewCard = ({ review }) => (
 
 export default function CustomerReviews() {
   const scrollRef = useRef(null);
+  const [displayReviews, setDisplayReviews] = useState(staticReviews);
+
+  useEffect(() => {
+    const fetchRecentReviews = async () => {
+      try {
+        const res = await API.get("/products/reviews/recent");
+        if (res.data && res.data.length > 0) {
+          const formatted = res.data.map((rev) => ({
+            id: rev._id,
+            quote: rev.comment,
+            name: rev.name,
+            city: "Verified Buyer",
+            rating: rev.rating,
+            product: rev.product ? rev.product.name : "Curated Product",
+          }));
+          setDisplayReviews(formatted);
+        }
+      } catch (err) {
+        console.error("Failed to fetch recent reviews:", err);
+      }
+    };
+    fetchRecentReviews();
+  }, []);
 
   return (
     <section className="bg-background py-16 md:py-20">
@@ -85,7 +109,7 @@ export default function CustomerReviews() {
 
         {/* Desktop — 3 column grid */}
         <div className="hidden md:grid md:grid-cols-3 gap-4">
-          {reviews.map((review) => (
+          {displayReviews.slice(0, 3).map((review) => (
             <ReviewCard key={review.id} review={review} />
           ))}
         </div>
@@ -95,7 +119,7 @@ export default function CustomerReviews() {
           ref={scrollRef}
           className="flex md:hidden gap-4 overflow-x-auto pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden [scroll-snap-type:x_mandatory]"
         >
-          {reviews.map((review) => (
+          {displayReviews.map((review) => (
             <div key={review.id} className="scroll-snap-start">
               <ReviewCard review={review} />
             </div>

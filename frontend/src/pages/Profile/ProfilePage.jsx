@@ -8,10 +8,14 @@ const ProfilePage = () => {
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: "",
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: user?.phone || "",
+    street: user?.address?.street || "",
+    apartment: user?.address?.apartment || "",
+    city: user?.address?.city || "",
+    state: user?.address?.state || "",
+    zipCode: user?.address?.zipCode || "",
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -20,29 +24,21 @@ const ProfilePage = () => {
   const [error, setError] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
 
-  // Redirect if not logged in
+  // Sync form details when user session changes
   useEffect(() => {
-    if (!user) {
-      navigate("/login");
-    } else {
+    if (user) {
       setFormData({
         name: user.name || "",
         email: user.email || "",
         phone: user.phone || "",
-        address: user.address || "",
+        street: user.address?.street || "",
+        apartment: user.address?.apartment || "",
+        city: user.address?.city || "",
+        state: user.address?.state || "",
+        zipCode: user.address?.zipCode || "",
       });
     }
-  }, [user, navigate]);
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center pt-24">
-        <div className="animate-pulse font-body text-sm text-muted uppercase tracking-[0.2em]">
-          Loading profile...
-        </div>
-      </div>
-    );
-  }
+  }, [user]);
 
   // Get Initials for Avatar
   const getInitials = (name) => {
@@ -68,7 +64,18 @@ const ProfilePage = () => {
     setSuccessMsg("");
 
     try {
-      await updateProfile(formData);
+      await updateProfile({
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        address: {
+          street: formData.street,
+          apartment: formData.apartment,
+          city: formData.city,
+          state: formData.state,
+          zipCode: formData.zipCode,
+        }
+      });
       setSuccessMsg("Profile updated successfully.");
       setIsEditing(false);
       
@@ -92,21 +99,53 @@ const ProfilePage = () => {
   const [dbOrders, setDbOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
 
+  const fetchMyOrders = async () => {
+    try {
+      setOrdersLoading(true);
+      const res = await API.get("/orders/myorders");
+      const mapped = res.data.map(order => ({
+        ...order,
+        id: order.orderId,
+      }));
+      setDbOrders(mapped);
+    } catch (err) {
+      console.error("Failed to load user orders from database:", err);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchMyOrders = async () => {
-      try {
-        const res = await API.get("/orders/myorders");
-        setDbOrders(res.data);
-      } catch (err) {
-        console.error("Failed to load user orders from database:", err);
-      } finally {
-        setOrdersLoading(false);
-      }
-    };
     if (user) {
       fetchMyOrders();
     }
   }, [user]);
+
+  const handleCancelOrder = async (orderId) => {
+    if (window.confirm("Are you sure you want to cancel this order? This action cannot be undone.")) {
+      try {
+        await API.put(`/orders/${orderId}/cancel`);
+        alert("Your order has been successfully cancelled. Refund details have been sent to your email.");
+        setSelectedOrder(null);
+        fetchMyOrders();
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to cancel order.");
+      }
+    }
+  };
+
+  const handleReturnOrder = async (orderId) => {
+    if (window.confirm("Are you sure you want to return this order? We will send a pre-paid shipping label guidelines to your email.")) {
+      try {
+        await API.put(`/orders/${orderId}/return`);
+        alert("Return request successfully submitted. Check your inbox for label instructions.");
+        setSelectedOrder(null);
+        fetchMyOrders();
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to submit return request.");
+      }
+    }
+  };
 
   const activeOrders = dbOrders;
 
@@ -231,7 +270,11 @@ const ProfilePage = () => {
                         name: user.name,
                         email: user.email,
                         phone: user.phone || "",
-                        address: user.address || "",
+                        street: user.address?.street || "",
+                        apartment: user.address?.apartment || "",
+                        city: user.address?.city || "",
+                        state: user.address?.state || "",
+                        zipCode: user.address?.zipCode || "",
                       });
                       setError("");
                     }}
@@ -302,24 +345,97 @@ const ProfilePage = () => {
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                    Shipping Address
-                  </label>
-                  <textarea
-                    name="address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                    rows="3"
-                    placeholder={isEditing ? "e.g. 742 Evergreen Terrace, Springfield, OR 97477" : "No address saved"}
-                    className={`w-full bg-background border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 resize-none ${
-                      isEditing
-                        ? "border-border focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-                        : "border-transparent bg-transparent pl-0 text-ink/75 font-normal cursor-not-allowed"
-                    }`}
-                  />
-                </div>
+                {!isEditing ? (
+                  <div className="space-y-1">
+                    <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                      Shipping Address
+                    </label>
+                    {formData.street ? (
+                      <div className="font-body text-sm text-ink/75 py-2 leading-relaxed">
+                        <p className="m-0">{formData.street}{formData.apartment ? `, ${formData.apartment}` : ""}</p>
+                        <p className="m-0">{formData.city}, {formData.state} {formData.zipCode}</p>
+                      </div>
+                    ) : (
+                      <p className="font-body text-sm text-muted/50 italic py-2 m-0">No address saved</p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="space-y-1">
+                      <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                        Street Address
+                      </label>
+                      <input
+                        type="text"
+                        name="street"
+                        value={formData.street}
+                        onChange={handleChange}
+                        placeholder="Flat, House no., Building, Company"
+                        className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          Apartment, suite, unit (Optional)
+                        </label>
+                        <input
+                          type="text"
+                          name="apartment"
+                          value={formData.apartment}
+                          onChange={handleChange}
+                          placeholder="e.g. Apt 4B"
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          Town / City
+                        </label>
+                        <input
+                          type="text"
+                          name="city"
+                          value={formData.city}
+                          onChange={handleChange}
+                          placeholder="e.g. Mumbai"
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          State
+                        </label>
+                        <input
+                          type="text"
+                          name="state"
+                          value={formData.state}
+                          onChange={handleChange}
+                          placeholder="e.g. Maharashtra"
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          ZIP / Postal Code
+                        </label>
+                        <input
+                          type="text"
+                          name="zipCode"
+                          value={formData.zipCode}
+                          onChange={handleChange}
+                          placeholder="e.g. 400001"
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {isEditing && (
                   <button
@@ -408,8 +524,8 @@ const ProfilePage = () => {
                 method: "standard"
               },
               paymentDetails: {
-                cardName: user.name,
-                cardNumber: "•••• •••• •••• 4242"
+                method: "razorpay",
+                razorpayPaymentId: "pay_sample_01"
               },
               pricingBreakdown: {
                 subtotal: 8900,
@@ -442,8 +558,8 @@ const ProfilePage = () => {
                 method: "standard"
               },
               paymentDetails: {
-                cardName: user.name,
-                cardNumber: "•••• •••• •••• 1085"
+                method: "razorpay",
+                razorpayPaymentId: "pay_sample_02"
               },
               pricingBreakdown: {
                 subtotal: 4200,
@@ -458,7 +574,7 @@ const ProfilePage = () => {
             ...selectedOrder,
             products: [],
             shippingDetails: { name: user.name, address: user.address || "No address stored", phone: user.phone || "No phone stored", method: "standard" },
-            paymentDetails: { cardName: user.name, cardNumber: "•••• •••• •••• 4242" },
+            paymentDetails: { method: "razorpay" },
             pricingBreakdown: { subtotal: 0, discount: 0, shipping: 0, total: 0 }
           };
         })();
@@ -469,7 +585,7 @@ const ProfilePage = () => {
         const steps = [
           { label: "Ordered", date: normalized.date, completed: true },
           { label: "Prepared", date: normalized.date, completed: true },
-          { label: "Shipped", date: normalized.date, completed: normalized.status === "Delivered" },
+          { label: "Shipped", date: normalized.date, completed: normalized.status === "Shipped" || normalized.status === "Delivered" },
           { label: "Delivered", date: normalized.status === "Delivered" ? normalized.date : "Estimated 4-7 days", completed: normalized.status === "Delivered" }
         ];
 
@@ -519,7 +635,14 @@ const ProfilePage = () => {
                   {/* Progress fill bar */}
                   <div
                     className="absolute left-0 h-[2px] bg-bronze z-0 transition-all duration-500"
-                    style={{ width: normalized.status === "Delivered" ? "100%" : "33.3%" }}
+                    style={{
+                      width:
+                        normalized.status === "Delivered"
+                          ? "100%"
+                          : normalized.status === "Shipped"
+                          ? "66.6%"
+                          : "33.3%"
+                    }}
                   />
 
                   {/* Nodes */}
@@ -584,7 +707,11 @@ const ProfilePage = () => {
                   </h5>
                   <div className="font-light text-ink/80 space-y-1">
                     <p className="font-normal m-0">{normalized.shippingDetails.name}</p>
-                    <p className="m-0 leading-relaxed">{normalized.shippingDetails.address}</p>
+                    <p className="m-0 leading-relaxed whitespace-pre-line">
+                      {typeof normalized.shippingDetails.address === "object"
+                        ? `${normalized.shippingDetails.address.street}${normalized.shippingDetails.address.apartment ? `, ${normalized.shippingDetails.address.apartment}` : ""}\n${normalized.shippingDetails.address.city}, ${normalized.shippingDetails.address.state} ${normalized.shippingDetails.address.zipCode}`
+                        : normalized.shippingDetails.address}
+                    </p>
                     <p className="m-0 text-muted">Tel: {normalized.shippingDetails.phone}</p>
                     <p className="m-0 text-[0.68rem] tracking-wider uppercase text-bronze font-normal mt-1.5">
                       Method: {normalized.shippingDetails.method === "express" ? "White-Glove Express" : "Atelier Standard"}
@@ -598,8 +725,13 @@ const ProfilePage = () => {
                       Payment Method
                     </h5>
                     <div className="font-light text-ink/80 space-y-1">
-                      <p className="m-0 font-normal">{normalized.paymentDetails.cardName}</p>
-                      <p className="m-0 text-muted">Card: {normalized.paymentDetails.cardNumber}</p>
+                      <p className="m-0 font-normal capitalize">
+                        {normalized.paymentDetails?.paymentMethod || normalized.paymentDetails?.method || "Razorpay"}
+                        {normalized.paymentDetails?.paymentStatus && ` (${normalized.paymentDetails.paymentStatus})`}
+                      </p>
+                      {(normalized.paymentDetails?.transactionToken || normalized.paymentDetails?.razorpayPaymentId) && (
+                        <p className="m-0 text-muted font-mono text-[0.7rem]">Txn: {normalized.paymentDetails.transactionToken || normalized.paymentDetails.razorpayPaymentId}</p>
+                      )}
                     </div>
                   </div>
 
@@ -633,6 +765,28 @@ const ProfilePage = () => {
 
                 </div>
               </div>
+
+              {/* Customer actions: Cancel or Return */}
+              {(normalized.status === "Processing" || normalized.status === "Delivered") && (
+                <div className="flex justify-end gap-4 border-t border-border/60 pt-5">
+                  {normalized.status === "Processing" && (
+                    <button
+                      onClick={() => handleCancelOrder(normalized.id)}
+                      className="font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase border border-red-700 hover:border-red-950 text-red-700 hover:text-red-950 px-6 py-2.5 bg-transparent transition-all duration-300 cursor-pointer rounded-[2px]"
+                    >
+                      Cancel Order
+                    </button>
+                  )}
+                  {normalized.status === "Delivered" && (
+                    <button
+                      onClick={() => handleReturnOrder(normalized.id)}
+                      className="font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase border border-ink hover:border-bronze text-ink hover:text-bronze px-6 py-2.5 bg-transparent transition-all duration-300 cursor-pointer rounded-[2px]"
+                    >
+                      Request Return
+                    </button>
+                  )}
+                </div>
+              )}
 
             </div>
           </div>
