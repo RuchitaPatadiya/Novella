@@ -7,6 +7,9 @@ import {
   updateUserProfile,
   forgotPassword,
   resetPassword,
+  getUserAddresses,
+  addUserAddress,
+  deleteUserAddress,
 } from "../controllers/authControllers.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { googleLogin } from "../controllers/oauthControllers.js";
@@ -28,5 +31,13 @@ router.put("/reset-password/:token", resetPassword);
 router.route("/profile")
   .get(protect, getUserProfile) // GET requests to retrieve user details
   .put(protect, updateUserProfile); // PUT requests to update user details
+
+// Address Book Endpoints
+router.route("/profile/addresses")
+  .get(protect, getUserAddresses)
+  .post(protect, addUserAddress);
+
+router.route("/profile/addresses/:addressId")
+  .delete(protect, deleteUserAddress);
 
 export default router;

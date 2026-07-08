@@ -33,6 +33,25 @@ const CheckoutPage = () => {
     method: "standard", // standard or express
   });
 
+  const [savedAddresses, setSavedAddresses] = useState([]);
+  const [addressesLoading, setAddressesLoading] = useState(true);
+  const [saveAddressToProfile, setSaveAddressToProfile] = useState(false);
+
+  useEffect(() => {
+    const fetchSavedAddresses = async () => {
+      try {
+        setAddressesLoading(true);
+        const res = await API.get("/auth/profile/addresses");
+        setSavedAddresses(res.data);
+      } catch (err) {
+        console.error("Failed to load saved addresses:", err);
+      } finally {
+        setAddressesLoading(false);
+      }
+    };
+    fetchSavedAddresses();
+  }, []);
+
   const [paymentForm, setPaymentForm] = useState({});
 
   const [formErrors, setFormErrors] = useState({});
@@ -219,6 +238,24 @@ const CheckoutPage = () => {
               phone: user.phone || shippingForm.phone,
             });
 
+            // Save to profile address book if checkbox was checked
+            if (saveAddressToProfile) {
+              try {
+                await API.post("/auth/profile/addresses", {
+                  name: shippingForm.name,
+                  street: shippingForm.street,
+                  apartment: shippingForm.apartment,
+                  city: shippingForm.city,
+                  state: shippingForm.state,
+                  zipCode: shippingForm.zipCode,
+                  phone: shippingForm.phone,
+                  isDefault: false
+                });
+              } catch (addrErr) {
+                console.error("Failed to save address to user profile:", addrErr);
+              }
+            }
+
             clearCart();
             setIsProcessing(false);
             navigate(`/order-success/${newOrder.id}`, { replace: true });
@@ -339,6 +376,47 @@ const CheckoutPage = () => {
 
                 {activeStep === 1 && (
                   <form onSubmit={handleShippingSubmit} className="p-6 md:p-8 space-y-6 animate-fadeIn">
+                    {/* Saved Addresses list */}
+                    {savedAddresses.length > 0 && (
+                      <div className="space-y-2 pb-6 border-b border-border/60">
+                        <span className="font-body font-normal text-[0.62rem] tracking-[0.16em] uppercase text-muted block mb-2">
+                          Select Saved Address
+                        </span>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {savedAddresses.map((addr) => (
+                            <div
+                              key={addr._id}
+                              type="button"
+                              onClick={() => {
+                                setShippingForm((prev) => ({
+                                  ...prev,
+                                  name: addr.name || prev.name,
+                                  phone: addr.phone || prev.phone,
+                                  street: addr.street || "",
+                                  apartment: addr.apartment || "",
+                                  city: addr.city || "",
+                                  state: addr.state || "",
+                                  zipCode: addr.zipCode || "",
+                                }));
+                              }}
+                              className="border border-border/80 bg-surface/50 hover:border-bronze hover:bg-surface/80 p-3.5 rounded-[4px] cursor-pointer transition-all duration-200 text-left space-y-1 font-body text-xs relative group"
+                            >
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold text-ink">{addr.name}</span>
+                                {addr.isDefault && (
+                                  <span className="text-[0.55rem] text-white bg-bronze px-1.5 py-0.5 rounded-xs tracking-wider uppercase font-semibold">
+                                    Default
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-muted block font-light truncate">{addr.street}{addr.apartment ? `, ${addr.apartment}` : ""}</span>
+                              <span className="text-muted block font-light">{addr.city}, {addr.state} {addr.zipCode}</span>
+                              <span className="text-muted block font-light text-[0.68rem]">{addr.phone}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1">
                         <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
@@ -510,6 +588,20 @@ const CheckoutPage = () => {
                           <span className="font-body font-medium text-xs text-ink">₹500</span>
                         </label>
                       </div>
+                    </div>
+
+                    {/* Checkbox to save address to profile book */}
+                    <div className="pt-2 flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="saveAddressToProfile"
+                        checked={saveAddressToProfile}
+                        onChange={(e) => setSaveAddressToProfile(e.target.checked)}
+                        className="accent-bronze cursor-pointer"
+                      />
+                      <label htmlFor="saveAddressToProfile" className="font-body text-xs text-muted cursor-pointer select-none">
+                        Save this address to my profile address book
+                      </label>
                     </div>
 
                     <button

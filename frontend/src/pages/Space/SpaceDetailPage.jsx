@@ -3,7 +3,7 @@ import { useParams, Link } from "react-router-dom";
 import { spacesData } from "../../utils/spaceData";
 import { useProducts } from "../../context/ProductContext";
 import BrandStrip from "../../components/home/BrandStrip";
-import { useWishlist } from "../../context/WishlistContext";
+import ProductCard from "../../components/common/ProductCard";
 
 const SpaceDetailPage = () => {
   const { spaceId } = useParams();
@@ -11,7 +11,6 @@ const SpaceDetailPage = () => {
   const space = spacesData.find((s) => s.id === spaceId);
 
   const [visible, setVisible] = useState(false);
-  const { toggleWishlist, isInWishlist } = useWishlist();
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -190,100 +189,29 @@ const SpaceDetailPage = () => {
           {/* Grid Layout matching ShopProductGrid styling */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10">
             {curatedProducts.map((p) => (
-              <div key={p.id} className="flex flex-col group">
-                {/* Card Top */}
-                <div className="relative overflow-hidden bg-surface border border-border aspect-[3/4] group-hover:border-bronze/30 transition-colors duration-300">
-                  <Link to={`/product/${p.id}`}>
-                    <img
-                      src={p.images[0]}
-                      alt={p.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-104"
-                    />
-                  </Link>
-                  {p.badge && (
-                    <span className="absolute top-2.5 left-2.5 font-body font-medium text-[0.5rem] tracking-[0.18em] uppercase px-2.5 py-1 bg-ink text-gold">
-                      {p.badge}
-                    </span>
-                  )}
-
-                  {/* Wishlist Button */}
-                  <button
-                    onClick={() => toggleWishlist(p.id)}
-                    className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-background/95 border border-border flex items-center justify-center cursor-pointer hover:border-bronze transition-colors duration-200"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" className="text-bronze"
-                      fill={isInWishlist(p.id) ? "currentColor" : "none"}
-                      stroke="currentColor" strokeWidth="1.8">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
-                  </button>
-                </div>
-
-                {/* Card Bottom */}
-                <div className="pt-3.5">
-                  <Link to={`/product/${p.id}`} className="no-underline">
-                    <p className="font-display font-medium text-[1rem] text-ink m-0 mb-1.5 leading-tight hover:text-bronze transition-colors duration-200">
-                      {p.name}
-                    </p>
-                  </Link>
-
-                  {/* Star Rating Row */}
-                  <div className="flex items-center gap-1.5 mb-2.5">
-                    <div className="flex gap-0.5 text-bronze">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <svg
-                          key={s}
-                          width="9"
-                          height="9"
-                          viewBox="0 0 24 24"
-                          fill={s <= Math.round(p.rating) ? "currentColor" : "none"}
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                        >
-                          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                        </svg>
-                      ))}
-                    </div>
-                    <span className="font-body font-light text-[0.62rem] text-muted">
-                      ({p.reviewsCount})
-                    </span>
-                  </div>
-
-                  {/* Prices */}
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-display font-semibold text-[1rem] text-ink">
-                      ₹{p.price.toLocaleString("en-IN")}
-                    </span>
-                    {p.originalPrice && (
-                      <span className="font-body font-light text-[0.75rem] text-muted line-through">
-                        ₹{p.originalPrice.toLocaleString("en-IN")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
+              <ProductCard key={p.id || p._id} product={p} />
             ))}
           </div>
         </div>
       </section>
 
       {/* Explore All Call to Action banner */}
-      <section className="bg-dark text-cream py-16 md:py-20 text-center relative overflow-hidden border-t border-gold/15">
+      <section className="bg-surface text-ink py-16 md:py-20 text-center relative overflow-hidden border-t border-border">
         <div className="relative z-10 max-w-2xl mx-auto px-6">
-          <p className="font-body text-[0.58rem] tracking-[0.38em] uppercase text-gold mb-3.5">
+          <p className="font-body text-[0.58rem] tracking-[0.38em] uppercase text-bronze mb-3.5 font-medium">
             Looking for something else?
           </p>
-          <h2 className="font-display font-light text-[2rem] md:text-[2.6rem] m-0 mb-8 leading-snug">
+          <h2 className="font-display font-light text-[2rem] md:text-[2.6rem] m-0 mb-8 leading-snug text-ink">
             Discover our entire design catalog.
           </h2>
           <Link to="/shop" className="no-underline inline-block">
-            <span className="block px-10 py-4 font-body font-medium text-xs tracking-widest uppercase bg-gold text-dark transition-all duration-300 hover:brightness-110">
+            <span className="block px-10 py-4 font-body font-medium text-xs tracking-widest uppercase bg-ink text-background rounded-lg transition-all duration-300 hover:bg-bronze hover:text-white cursor-pointer">
               Shop All Products
             </span>
           </Link>
         </div>
         {/* Subtle decorative background gradient */}
-        <div className="absolute inset-0 bg-gradient-to-tr from-dark-deep via-dark to-dark-deep opacity-80" />
+        <div className="absolute inset-0 bg-gradient-to-tr from-surface via-background to-surface opacity-30 pointer-events-none" />
       </section>
 
       <BrandStrip />

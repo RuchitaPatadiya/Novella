@@ -29,6 +29,18 @@ const userSchema = new mongoose.Schema(
       state: { type: String, default: "" },
       zipCode: { type: String, default: "" },
     },
+    addresses: [
+      {
+        name: { type: String, default: "" },
+        street: { type: String, default: "" },
+        apartment: { type: String, default: "" },
+        city: { type: String, default: "" },
+        state: { type: String, default: "" },
+        zipCode: { type: String, default: "" },
+        phone: { type: String, default: "" },
+        isDefault: { type: Boolean, default: false }
+      }
+    ],
     orders: {
       type: Array,
       default: [],

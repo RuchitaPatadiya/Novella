@@ -18,25 +18,25 @@ export default function EditorialBreak() {
             <div className="flex items-center gap-2.5 mb-4">
               <span className="block w-5 h-px bg-bronze" />
               <span className="font-body font-normal text-[0.55rem] tracking-[0.38em] uppercase text-bronze">
-                The Novella Philosophy
+                Exclusive Privilege
               </span>
             </div>
 
-            <h2 className="font-display font-light text-[clamp(2rem,4vw,3.2rem)] text-ink m-0 leading-[1.08] tracking-[-0.01em]">
-              Designed for how you{" "}
-              <em className="text-bronze font-medium italic">actually live.</em>
+            <h2 className="font-display font-light text-[clamp(1.8rem,4vw,2.8rem)] text-ink m-0 leading-[1.1] tracking-[-0.01em]">
+              Enjoy 10% Off Your{" "}
+              <em className="text-bronze font-medium italic">First Order</em>
             </h2>
 
-            <p className="font-body font-light text-[0.9rem] text-muted mt-5 mb-8 max-w-md leading-[1.85] tracking-[0.03em] m-0">
-              Not showroom perfection — spaces that feel warm, considered, and entirely yours.
+            <p className="font-body font-light text-[0.88rem] text-muted mt-5 mb-8 max-w-md leading-[1.8] tracking-[0.03em] m-0">
+              Use code <strong className="font-semibold text-bronze">WELCOME10</strong> at checkout to unlock your introductory savings. Enjoy complimentary white-glove shipping on your first purchase.
             </p>
 
             <Link
-              to="/collections"
+              to="/shop"
               className="no-underline inline-flex items-center gap-3 self-start group"
             >
               <span className="font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase bg-ink text-cream-muted px-7 py-3.5 transition-colors duration-300 group-hover:bg-gold group-hover:text-dark">
-                See the Spring Edit
+                Shop the Collection
               </span>
               <svg
                 width="18" height="8" viewBox="0 0 18 8" fill="none"

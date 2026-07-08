@@ -297,3 +297,79 @@ export const resetPassword = async (req, res) => {
     res.status(500).json({ message: "Failed to reset password: " + error.message });
   }
 };
+
+// @desc    Get user address book
+// @route   GET /api/auth/profile/addresses
+// @access  Protected
+export const getUserAddresses = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+    res.status(200).json(user.addresses || []);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch addresses: " + error.message });
+  }
+};
+
+// @desc    Add a saved address to profile
+// @route   POST /api/auth/profile/addresses
+// @access  Protected
+export const addUserAddress = async (req, res) => {
+  const { name, street, apartment, city, state, zipCode, phone, isDefault } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    // Create address item
+    const newAddress = {
+      name,
+      street,
+      apartment,
+      city,
+      state,
+      zipCode,
+      phone,
+      isDefault: !!isDefault
+    };
+
+    // If marked as default, clear any other defaults
+    if (newAddress.isDefault) {
+      user.addresses.forEach(addr => {
+        addr.isDefault = false;
+      });
+    }
+
+    user.addresses.push(newAddress);
+    await user.save();
+
+    res.status(201).json(user.addresses);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to add address: " + error.message });
+  }
+};
+
+// @desc    Delete a saved address
+// @route   DELETE /api/auth/profile/addresses/:addressId
+// @access  Protected
+export const deleteUserAddress = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    user.addresses = user.addresses.filter(
+      addr => addr._id.toString() !== req.params.addressId
+    );
+    await user.save();
+
+    res.status(200).json(user.addresses);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to delete address: " + error.message });
+  }
+};

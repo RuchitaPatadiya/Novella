@@ -27,6 +27,28 @@ const AdminPage = () => {
   // Promo code states
   const [promos, setPromos] = useState([]);
   const [promosLoading, setPromosLoading] = useState(true);
+  
+  // Contact messages state
+  const [messages, setMessages] = useState([]);
+  const [messagesLoading, setMessagesLoading] = useState(true);
+  const [selectedMessage, setSelectedMessage] = useState(null);
+
+  // Store Analytics state
+  const [analytics, setAnalytics] = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+
+  const fetchAnalytics = async () => {
+    try {
+      setAnalyticsLoading(true);
+      const res = await API.get("/analytics/admin");
+      setAnalytics(res.data);
+    } catch (err) {
+      console.error("Failed to load store analytics:", err);
+      setAnalytics(null);
+    } finally {
+      setAnalyticsLoading(false);
+    }
+  };
   const [promoFormData, setPromoFormData] = useState({
     code: "",
     discountType: "percentage",
@@ -122,6 +144,20 @@ const AdminPage = () => {
     }
   };
 
+  // Fetch contact messages
+  const fetchMessages = async () => {
+    try {
+      setMessagesLoading(true);
+      const res = await API.get("/contact/admin");
+      setMessages(res.data);
+    } catch (err) {
+      console.error("Failed to load contact messages:", err);
+      setMessages([]);
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!loading) {
       if (!user) {
@@ -132,6 +168,8 @@ const AdminPage = () => {
         fetchOrders();
         fetchReviews();
         fetchPromos();
+        fetchMessages();
+        fetchAnalytics();
       }
     }
   }, [user, loading, navigate]);
@@ -202,6 +240,36 @@ const AdminPage = () => {
         setAdminReviews(prev => prev.filter(rev => rev._id !== reviewId));
       } catch (err) {
         alert(err.response?.data?.message || "Failed to reject review.");
+      }
+    }
+  };
+
+  // Handle Contact message status updates
+  const handleUpdateMessageStatus = async (messageId, newStatus) => {
+    try {
+      const res = await API.put(`/contact/${messageId}/status`, { status: newStatus });
+      setMessages((prev) =>
+        prev.map((msg) => (msg._id === messageId ? res.data : msg))
+      );
+      if (selectedMessage && selectedMessage._id === messageId) {
+        setSelectedMessage(res.data);
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to update message status.");
+    }
+  };
+
+  // Handle Contact message deletion
+  const handleDeleteMessage = async (messageId) => {
+    if (window.confirm("Are you sure you want to permanently delete this message?")) {
+      try {
+        await API.delete(`/contact/${messageId}`);
+        setMessages((prev) => prev.filter((msg) => msg._id !== messageId));
+        if (selectedMessage && selectedMessage._id === messageId) {
+          setSelectedMessage(null);
+        }
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to delete contact message.");
       }
     }
   };
@@ -450,7 +518,7 @@ const AdminPage = () => {
 
   if (loading) {
     return (
-      <div className="bg-[#121212] min-h-screen text-cream flex flex-col items-center justify-center font-body text-xs tracking-[0.2em] uppercase animate-pulse">
+      <div className="bg-background min-h-screen text-ink flex flex-col items-center justify-center font-body text-xs tracking-[0.2em] uppercase animate-pulse">
         <div className="w-8 h-8 border border-bronze border-t-transparent rounded-full animate-spin mb-4" />
         Authenticating backoffice credentials...
       </div>
@@ -474,13 +542,13 @@ const AdminPage = () => {
   const catalogCount = products.length;
 
   return (
-    <div className="bg-[#121212] text-[#F3EFE9] min-h-screen flex font-body">
+    <div className="bg-background text-ink min-h-screen flex font-body">
       
       {/* 1. SIDEBAR CONTROLLER */}
-      <aside className="w-64 border-r border-[#2C2C2C] bg-[#161616] p-6 flex flex-col justify-between shrink-0">
+      <aside className="w-64 border-r border-border bg-surface p-6 flex flex-col justify-between shrink-0">
         <div className="space-y-8">
-          <div className="pb-4 border-b border-[#2C2C2C]">
-            <span className="font-display font-light text-2xl tracking-[0.1em] text-background uppercase block">
+          <div className="pb-4 border-b border-border">
+            <span className="font-display font-light text-2xl tracking-[0.1em] text-ink uppercase block">
               Novella
             </span>
             <span className="font-body text-[0.55rem] tracking-[0.25em] text-bronze uppercase block mt-1">
@@ -493,8 +561,8 @@ const AdminPage = () => {
               onClick={() => setActivePanel("overview")}
               className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
                 activePanel === "overview"
-                  ? "bg-[#252525] text-background font-medium"
-                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
               }`}
             >
               <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -507,8 +575,8 @@ const AdminPage = () => {
               onClick={() => setActivePanel("orders")}
               className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
                 activePanel === "orders"
-                  ? "bg-[#252525] text-background font-medium"
-                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
               }`}
             >
               <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -521,8 +589,8 @@ const AdminPage = () => {
               onClick={() => setActivePanel("catalog")}
               className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
                 activePanel === "catalog"
-                  ? "bg-[#252525] text-background font-medium"
-                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
               }`}
             >
               <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -535,8 +603,8 @@ const AdminPage = () => {
               onClick={() => setActivePanel("reviews")}
               className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
                 activePanel === "reviews"
-                  ? "bg-[#252525] text-background font-medium"
-                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
               }`}
             >
               <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -549,8 +617,8 @@ const AdminPage = () => {
               onClick={() => setActivePanel("promotions")}
               className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
                 activePanel === "promotions"
-                  ? "bg-[#252525] text-background font-medium"
-                  : "bg-transparent text-cream-muted/70 hover:text-background hover:bg-[#1E1E1E]"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
               }`}
             >
               <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -558,21 +626,35 @@ const AdminPage = () => {
               </svg>
               Promotions ({promos.length})
             </button>
+
+            <button
+              onClick={() => setActivePanel("messages")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "messages"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
+              }`}
+            >
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              Messages ({messages.filter(m => m.status === "New").length > 0 ? `${messages.length} · ${messages.filter(m => m.status === "New").length} new` : messages.length})
+            </button>
           </nav>
         </div>
 
         {/* Footer controls */}
         <div className="space-y-4">
-          <div className="h-px bg-[#2C2C2C]" />
+          <div className="h-px bg-border" />
           <Link
             to="/"
-            className="w-full text-center block font-body text-[0.62rem] tracking-[0.2em] uppercase text-bronze hover:text-background no-underline py-2 border border-bronze/40 hover:border-background transition-colors duration-200"
+            className="w-full text-center block font-body text-[0.62rem] tracking-[0.2em] uppercase text-bronze hover:text-ink no-underline py-2 border border-bronze/40 hover:border-ink transition-colors duration-200"
           >
             Return to Store
           </Link>
           <button
             onClick={() => { logout(); navigate("/"); }}
-            className="w-full bg-[#1A1A1A] border-0 text-cream-muted hover:text-background py-2 text-[0.62rem] tracking-[0.2em] uppercase hover:bg-red-950/20 cursor-pointer transition-colors duration-200"
+            className="w-full bg-surface hover:bg-border/40 border border-border text-ink py-2 text-[0.62rem] tracking-[0.2em] uppercase cursor-pointer transition-colors duration-200"
           >
             Sign Out
           </button>
@@ -588,6 +670,7 @@ const AdminPage = () => {
             {activePanel === "catalog" && "Inventory Catalog"}
             {activePanel === "reviews" && "Reviews Moderation"}
             {activePanel === "promotions" && "Promotional Campaigns"}
+            {activePanel === "messages" && "Contact Messages"}
           </h2>
           <span className="font-body text-[0.65rem] tracking-wider text-muted uppercase">
             Logged in as Admin
@@ -598,30 +681,155 @@ const AdminPage = () => {
           
           {/* STATS OVERVIEW PANEL */}
           {activePanel === "overview" && (
-            <div className="space-y-8 animate-fadeIn">
-              {/* Stat cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div className="bg-white border border-border p-5 rounded-[2px]">
-                  <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Gross Valuation</span>
-                  <span className="font-display text-2xl text-ink block mt-1">₹{totalSalesVal.toLocaleString("en-IN")}</span>
+            <div className="space-y-8 animate-fadeIn text-ink">
+              {analyticsLoading || !analytics ? (
+                <div className="text-center font-body text-xs text-muted py-12 animate-pulse flex flex-col items-center justify-center">
+                  <div className="w-6 h-6 border border-bronze border-t-transparent rounded-full animate-spin mb-4" />
+                  Drawing analytics dashboards...
                 </div>
-                <div className="bg-white border border-border p-5 rounded-[2px]">
-                  <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Total Transactions</span>
-                  <span className="font-display text-2xl text-ink block mt-1">{totalOrders}</span>
-                </div>
-                <div className="bg-white border border-border p-5 rounded-[2px]">
-                  <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Items in Catalog</span>
-                  <span className="font-display text-2xl text-ink block mt-1">{catalogCount}</span>
-                </div>
-                <div className="bg-white border border-border p-5 rounded-[2px]">
-                  <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Pending Shipments</span>
-                  <span className="font-display text-2xl text-ink block mt-1">{pendingShipments}</span>
-                </div>
-              </div>
+              ) : (
+                <>
+                  {/* Stat cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="bg-white border border-border p-5 rounded-[4px]">
+                      <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Gross Valuation</span>
+                      <span className="font-display text-2xl text-ink block mt-1">₹{analytics.summary.totalRevenue.toLocaleString("en-IN")}</span>
+                    </div>
+                    <div className="bg-white border border-border p-5 rounded-[4px]">
+                      <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Transactions Completed</span>
+                      <span className="font-display text-2xl text-ink block mt-1">{analytics.summary.totalOrders}</span>
+                    </div>
+                    <div className="bg-white border border-border p-5 rounded-[4px]">
+                      <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Out of Stock Pieces</span>
+                      <span className="font-display text-2xl text-ink block mt-1">{analytics.summary.outOfStock}</span>
+                    </div>
+                    <div className="bg-white border border-border p-5 rounded-[4px]">
+                      <span className="font-body text-[0.62rem] tracking-wider uppercase text-muted block">Open Support Tickets</span>
+                      <span className="font-display text-2xl text-ink block mt-1">{analytics.summary.openEnquiries}</span>
+                    </div>
+                  </div>
+
+                  {/* Charts row */}
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* SVG Area Chart */}
+                    <div className="lg:col-span-2 bg-white border border-border p-6 rounded-[4px] space-y-4">
+                      <h4 className="font-display font-light text-sm uppercase tracking-wider text-ink m-0">Monthly Revenue Trend</h4>
+                      <div className="w-full overflow-hidden">
+                        <svg viewBox="0 0 600 240" className="w-full h-auto">
+                          {/* Gradients */}
+                          <defs>
+                            <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#d97706" stopOpacity="0.2" />
+                              <stop offset="100%" stopColor="#d97706" stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
+
+                          {/* Y-Axis Grid Lines */}
+                          {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => {
+                            const y = 20 + 180 - ratio * 180;
+                            const value = Math.round(ratio * Math.max(...analytics.salesTrend.map(d => d.revenue), 1000));
+                            return (
+                              <g key={index}>
+                                <line x1="60" y1={y} x2="570" y2={y} stroke="#ebe5db" strokeDasharray="3,3" />
+                                <text x="50" y={y + 4} fill="#9ca3af" fontSize="8" textAnchor="end">₹{value >= 1000 ? (value / 1000) + 'k' : value}</text>
+                              </g>
+                            );
+                          })}
+
+                          {/* Chart Path and Area */}
+                          {(() => {
+                            const salesData = analytics.salesTrend || [];
+                            const maxRev = Math.max(...salesData.map(d => d.revenue), 1000);
+                            const w = 600;
+                            const h = 240;
+                            const pad = { top: 20, right: 30, bottom: 40, left: 60 };
+                            const cW = w - pad.left - pad.right;
+                            const cH = h - pad.top - pad.bottom;
+
+                            const pts = salesData.map((d, i) => {
+                              const x = pad.left + (i / Math.max(salesData.length - 1, 1)) * cW;
+                              const y = pad.top + cH - (d.revenue / maxRev) * cH;
+                              return { x, y, label: d.month, val: d.revenue };
+                            });
+
+                            if (pts.length === 0) return null;
+
+                            const pathString = pts.reduce((acc, p, i) => acc + (i === 0 ? `M ${p.x} ${p.y}` : ` L ${p.x} ${p.y}`), "");
+                            const areaString = `${pathString} L ${pts[pts.length - 1].x} ${pad.top + cH} L ${pts[0].x} ${pad.top + cH} Z`;
+
+                            return (
+                              <g>
+                                <path d={areaString} fill="url(#areaGradient)" />
+                                <path d={pathString} fill="none" stroke="#d97706" strokeWidth="2" />
+                                {pts.map((p, i) => (
+                                  <g key={i}>
+                                    <circle cx={p.x} cy={p.y} r="4" fill="#fbf9f5" stroke="#d97706" strokeWidth="2" className="cursor-pointer hover:r-6" />
+                                    <text x={p.x} y={h - 15} fill="#9ca3af" fontSize="8" textAnchor="middle">{p.label}</text>
+                                  </g>
+                                ))}
+                              </g>
+                            );
+                          })()}
+                        </svg>
+                      </div>
+                    </div>
+
+                    {/* Status Distribution Progress Bars */}
+                    <div className="bg-white border border-border p-6 rounded-[4px] space-y-6">
+                      <h4 className="font-display font-light text-sm uppercase tracking-wider text-ink m-0">Fulfillment Mix</h4>
+                      <div className="space-y-4">
+                        {Object.entries(analytics.statusCounts).map(([status, count]) => {
+                          const percentage = analytics.summary.totalOrders > 0 ? (count / analytics.summary.totalOrders) * 100 : 0;
+                          return (
+                            <div key={status} className="space-y-1.5">
+                              <div className="flex justify-between text-[0.68rem] text-muted tracking-wider uppercase">
+                                <span>{status}</span>
+                                <span>{count} ({percentage.toFixed(0)}%)</span>
+                              </div>
+                              <div className="w-full bg-[#ebe5db] h-1.5 rounded-full overflow-hidden">
+                                <div className="bg-bronze h-full transition-all duration-500" style={{ width: `${percentage}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bottom row: Top Products */}
+                  <div className="bg-white border border-border p-6 rounded-[4px] space-y-4">
+                    <h4 className="font-display font-light text-sm uppercase tracking-wider text-ink m-0">Top-Selling Pieces</h4>
+                    {analytics.bestSellers.length === 0 ? (
+                      <div className="text-center py-6 text-xs text-muted">No sales items logged yet.</div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse font-body text-xs">
+                          <thead>
+                            <tr className="border-b border-border text-muted text-[0.62rem] uppercase tracking-wider">
+                              <th className="py-3">Piece Name</th>
+                              <th className="py-3 text-center">Quantity Sold</th>
+                              <th className="py-3 text-right">Gross Income</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-border text-ink">
+                            {analytics.bestSellers.map((item, index) => (
+                              <tr key={index}>
+                                <td className="py-3.5 font-medium">{item.name}</td>
+                                <td className="py-3.5 text-center font-mono">{item.quantity}</td>
+                                <td className="py-3.5 text-right font-mono text-bronze">₹{item.revenue.toLocaleString("en-IN")}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
 
               {/* Quick Actions / Activity Info */}
-              <div className="bg-white border border-border p-6 rounded-[2px]">
-                <h4 className="font-display font-light text-base text-ink mb-4">Quick Operations</h4>
+              <div className="bg-white border border-border p-6 rounded-[4px]">
+                <h4 className="font-display font-light text-sm uppercase tracking-wider text-ink mb-4 m-0">Quick Operations</h4>
                 <div className="flex gap-4">
                   <button
                     onClick={() => { setActivePanel("catalog"); openCreateMode(); }}
@@ -1239,6 +1447,233 @@ const AdminPage = () => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* CONTACT MESSAGES PANEL */}
+          {activePanel === "messages" && (
+            <div className="space-y-6 animate-fadeIn">
+              
+              {/* Message Counts */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white border border-border p-4 rounded-[2px] shadow-xs">
+                  <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Total Submissions</span>
+                  <span className="font-display text-xl text-ink block mt-0.5 font-medium">{messages.length} Messages</span>
+                </div>
+                <div className="bg-white border border-border p-4 rounded-[2px] shadow-xs">
+                  <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">New Messages</span>
+                  <span className="font-display text-xl text-ink block mt-0.5 font-semibold text-bronze">
+                    {messages.filter(m => m.status === "New").length} Unread
+                  </span>
+                </div>
+                <div className="bg-white border border-border p-4 rounded-[2px] shadow-xs">
+                  <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Replied</span>
+                  <span className="font-display text-xl text-ink block mt-0.5 font-medium text-emerald-700">
+                    {messages.filter(m => m.status === "Replied").length} Solved
+                  </span>
+                </div>
+                <div className="bg-white border border-border p-4 rounded-[2px] shadow-xs">
+                  <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Archived</span>
+                  <span className="font-display text-xl text-ink block mt-0.5 font-medium text-muted">
+                    {messages.filter(m => m.status === "Archived").length} Stored
+                  </span>
+                </div>
+              </div>
+
+              {/* List and detail view */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Left Side List */}
+                <div className="lg:col-span-1 bg-white border border-border p-4 rounded-[2px] shadow-xs flex flex-col h-[600px]">
+                  <div className="pb-3 border-b border-border mb-3">
+                    <h3 className="font-display text-sm font-semibold text-ink m-0">Inbound Messages</h3>
+                    <p className="font-body text-[0.65rem] text-muted m-0">Click a message header to read full inquiry details.</p>
+                  </div>
+                  
+                  {messagesLoading ? (
+                    <div className="flex-grow flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="w-6 h-6 border-2 border-bronze border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                        <p className="font-body text-[0.62rem] text-muted tracking-wider uppercase">Loading mailbox...</p>
+                      </div>
+                    </div>
+                  ) : messages.length === 0 ? (
+                    <div className="flex-grow flex items-center justify-center py-10 text-center bg-[#FDFBF7]">
+                      <div>
+                        <svg className="w-6 h-6 text-muted/30 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        <p className="font-body text-xs text-muted italic">No contact submissions found in database.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex-grow overflow-y-auto space-y-2 pr-1 [scrollbar-width:thin]">
+                      {messages.map((msg) => {
+                        const isSelected = selectedMessage && selectedMessage._id === msg._id;
+                        return (
+                          <div
+                            key={msg._id}
+                            onClick={() => {
+                              setSelectedMessage(msg);
+                              // Mark as Read automatically on click if it was New
+                              if (msg.status === "New") {
+                                handleUpdateMessageStatus(msg._id, "Read");
+                              }
+                            }}
+                            className={`p-3 border text-left cursor-pointer transition-all duration-200 rounded-[2px] ${
+                              isSelected
+                                ? "bg-surface border-bronze"
+                                : "bg-background border-border hover:border-bronze/40"
+                            }`}
+                          >
+                            <div className="flex justify-between items-start mb-1.5">
+                              <span className={`text-[0.55rem] uppercase tracking-widest font-semibold px-1 py-0.5 rounded-sm ${
+                                msg.status === "New"
+                                  ? "bg-bronze text-white font-bold animate-pulse"
+                                  : msg.status === "Read"
+                                  ? "bg-blue-50 text-blue-700 border border-blue-100"
+                                  : msg.status === "Replied"
+                                  ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
+                                  : "bg-surface text-muted border border-border"
+                              }`}>
+                                {msg.status}
+                              </span>
+                              <span className="font-body text-[0.58rem] text-muted">
+                                {new Date(msg.createdAt).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })}
+                              </span>
+                            </div>
+                            <h4 className="font-display font-medium text-xs text-ink m-0 truncate leading-snug">{msg.name}</h4>
+                            <p className="font-body text-[0.65rem] text-muted m-0 truncate mt-0.5">{msg.subject}</p>
+                            <p className="font-body text-[0.62rem] text-muted/80 m-0 line-clamp-2 mt-1 italic font-light">
+                              "{msg.message}"
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Side Detail View */}
+                <div className="lg:col-span-2 bg-white border border-border p-6 rounded-[2px] shadow-xs flex flex-col h-[600px] justify-between">
+                  {selectedMessage ? (
+                    <div className="flex flex-col h-full justify-between">
+                      {/* Top Header Card */}
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-start border-b border-border pb-4">
+                          <div>
+                            <span className="font-body text-[0.55rem] tracking-[0.25em] uppercase text-bronze block">
+                              Inquiry Subject
+                            </span>
+                            <h3 className="font-display font-semibold text-lg text-ink m-0 mt-1">
+                              {selectedMessage.subject}
+                            </h3>
+                          </div>
+                          <span className="font-body text-[0.65rem] text-muted font-light mt-1">
+                            Received: {new Date(selectedMessage.createdAt).toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit"
+                            })}
+                          </span>
+                        </div>
+
+                        {/* Customer card */}
+                        <div className="p-4 bg-background border border-border/80 flex items-center justify-between flex-wrap gap-4 rounded-sm">
+                          <div>
+                            <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Sender Name</span>
+                            <span className="font-display font-medium text-sm text-ink">{selectedMessage.name}</span>
+                          </div>
+                          <div>
+                            <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Email Address</span>
+                            <a
+                              href={`mailto:${selectedMessage.email}`}
+                              className="font-body text-xs text-bronze hover:underline"
+                            >
+                              {selectedMessage.email}
+                            </a>
+                          </div>
+                          <div>
+                            <span className="font-body text-[0.55rem] tracking-wider uppercase text-muted block">Current Status</span>
+                            <span className={`inline-block text-[0.55rem] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-sm mt-0.5 ${
+                              selectedMessage.status === "New"
+                                ? "bg-bronze text-white"
+                                : selectedMessage.status === "Read"
+                                ? "bg-blue-50 text-blue-700 border border-blue-100"
+                                : selectedMessage.status === "Replied"
+                                ? "bg-emerald-50 text-emerald-800 border border-emerald-100"
+                                : "bg-surface text-muted border border-border"
+                            }`}>
+                              {selectedMessage.status}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Message body */}
+                        <div className="space-y-2">
+                          <span className="font-body text-[0.55rem] tracking-[0.25em] uppercase text-muted block">
+                            Message Body
+                          </span>
+                          <div className="p-5 border border-border/60 bg-[#FDFBF7] font-body text-xs leading-relaxed text-ink whitespace-pre-wrap min-h-[160px] max-h-[220px] overflow-y-auto rounded-sm">
+                            {selectedMessage.message}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Footer Actions */}
+                      <div className="border-t border-border pt-4 flex justify-between items-center flex-wrap gap-4">
+                        <div className="flex items-center gap-2">
+                          <span className="font-body text-[0.65rem] text-muted">Mark Status:</span>
+                          <select
+                            value={selectedMessage.status}
+                            onChange={(e) => handleUpdateMessageStatus(selectedMessage._id, e.target.value)}
+                            className="bg-[#FDFBF7] border border-border px-2 py-1.5 font-body text-[0.68rem] text-ink outline-none focus:border-bronze rounded-[2px]"
+                          >
+                            <option value="New">Unread (New)</option>
+                            <option value="Read">Read</option>
+                            <option value="Replied">Replied (Solved)</option>
+                            <option value="Archived">Archived</option>
+                          </select>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <a
+                            href={`mailto:${selectedMessage.email}?subject=Re: Novella - ${selectedMessage.subject}`}
+                            className="no-underline inline-flex items-center justify-center px-4 py-2 bg-ink hover:bg-bronze text-background font-body text-[0.62rem] tracking-widest uppercase transition-colors duration-250 rounded-[2px] font-medium"
+                          >
+                            Compose Email Reply
+                          </a>
+                          <button
+                            onClick={() => handleDeleteMessage(selectedMessage._id)}
+                            className="px-4 py-2 border border-red-200 hover:border-red-600 bg-transparent text-red-600 hover:text-red-700 hover:bg-red-50 font-body text-[0.62rem] tracking-widest uppercase transition-all duration-200 cursor-pointer rounded-[2px]"
+                          >
+                            Delete Message
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-center bg-[#FDFBF7]">
+                      <div>
+                        <svg className="w-10 h-10 text-muted/30 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        <h4 className="font-display font-light text-base text-ink m-0">No Message Selected</h4>
+                        <p className="font-body text-xs text-muted max-w-[280px] mx-auto mt-1 leading-normal">
+                          Select a customer message from the left inbox list to view details and update its resolution status.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+
             </div>
           )}
         </div>

@@ -1,5 +1,6 @@
 import React from "react";
 import HeroSection from "../../components/home/Herosection";
+import ShopByCategory from "../../components/home/ShopByCategory";
 import EditorialBreak from "../../components/home/EditorialBreak";
 import ShopBySpace from "../../components/home/ShopBySpace";
 import BestSellers from "../../components/home/BestSellers";
@@ -12,19 +13,22 @@ const Home = () => {
       {/* 1. Hero Welcome banner */}
       <HeroSection />
 
-      {/* 2. Brand Narrative philosophy */}
+      {/* 2. Shop by curated Categories */}
+      <ShopByCategory />
+
+      {/* 3. Brand Narrative philosophy */}
       <EditorialBreak />
 
-      {/* 3. Shop by curated Spaces */}
+      {/* 4. Shop by curated Spaces */}
       <ShopBySpace />
 
-      {/* 4. Live database dynamic Best Sellers catalog */}
+      {/* 5. Live database dynamic Best Sellers catalog */}
       <BestSellers />
 
-      {/* 5. Social proof reviews */}
+      {/* 6. Social proof reviews */}
       <CustomerReviews />
 
-      {/* 6. Standard shipping information strip */}
+      {/* 7. Standard shipping information strip */}
       <BrandStrip />
     </div>
   );

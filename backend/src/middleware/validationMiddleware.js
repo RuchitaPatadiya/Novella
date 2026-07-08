@@ -9,6 +9,7 @@ export const validateBody = (schema) => {
     });
 
     if (error) {
+      console.log("[VALIDATION ERROR DETAILS]:", error.details);
       const errorMessages = error.details.map((detail) => detail.message);
       return res.status(400).json({
         message: "Validation failed: " + errorMessages.join(", "),

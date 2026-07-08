@@ -18,6 +18,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { cloudinary, isCloudinaryConfigured } from "../config/cloudinary.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,13 +73,36 @@ router.route("/reviews/recent")
   .get(getRecentReviews);
 
 // Upload image route
-router.post("/upload", protect, admin, upload.single("image"), (req, res) => {
+router.post("/upload", protect, admin, upload.single("image"), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ message: "No file uploaded" });
   }
-  res.status(200).json({
-    url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`,
-  });
+
+  try {
+    if (isCloudinaryConfigured) {
+      // Upload to Cloudinary
+      const result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "novella_catalog",
+      });
+      // Delete the local temporary file
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(200).json({
+        url: result.secure_url,
+      });
+    }
+
+    // Local fallback
+    res.status(200).json({
+      url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`,
+    });
+  } catch (error) {
+    console.error("Cloudinary upload failed, falling back to local storage:", error);
+    res.status(200).json({
+      url: `${req.protocol}://${req.get("host")}/uploads/${req.file.filename}`,
+    });
+  }
 });
 
 // Admin-only reviews moderation list

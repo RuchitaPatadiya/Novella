@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
 import CollectionsHero from '../../components/collection/CollectionsHero'
 import CollectionGrid from '../../components/collection/CollectionGrid'
-import FeaturedCollection from '../../components/collection/FeaturedCollection'
-import NewArrivalsStrip from '../../components/collection/NewArrivalStrip'
+import TrendingNow from '../../components/collection/TrendingNow'
+import DesignerSpotlight from '../../components/collection/DesignerSpotlight'
 import StyleQuizBanner from '../../components/collection/StyleQuizBanner'
 import BrandStrip from '../../components/home/BrandStrip'
 
@@ -19,11 +19,23 @@ const CollectionPage = () => {
           <span className="text-ink font-normal">Collections</span>
         </div>
       </div>
+
+      {/* 1. Hero */}
       <CollectionsHero />
+
+      {/* 2. Collection Grid — 6 curated worlds */}
       <CollectionGrid />
-      <FeaturedCollection />
-      <NewArrivalsStrip />
+
+      {/* 3. Trending Now — Dynamic from DB (replaced FeaturedCollection) */}
+      <TrendingNow />
+
+      {/* 4. Designer Spotlight — Editorial (replaced NewArrivalsStrip) */}
+      <DesignerSpotlight />
+
+      {/* 5. Style Quiz */}
       <StyleQuizBanner />
+
+      {/* 6. Brand Strip */}
       <BrandStrip />
     </div>
   )

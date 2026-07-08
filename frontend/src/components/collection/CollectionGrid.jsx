@@ -64,7 +64,7 @@ const CollectionCard = ({ col }) => {
   return (
     <Link
       to={col.to}
-      className="no-underline flex flex-col h-full overflow-hidden border border-border bg-background group hover:border-bronze/40 transition-colors duration-300"
+      className="no-underline flex flex-col h-full overflow-hidden rounded-[24px] border border-border bg-background shadow-xs group hover:border-bronze/40 hover:shadow-md transition-all duration-500"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
@@ -76,22 +76,22 @@ const CollectionCard = ({ col }) => {
         />
 
         <span
-          className={`absolute top-3 left-3 font-body font-normal text-[0.5rem] tracking-[0.22em] uppercase text-bronze px-2.5 py-1 border border-border bg-background/90 transition-opacity duration-300 ${hovered ? "opacity-100" : "opacity-0"}`}
+          className={`absolute top-4 left-4 font-body font-normal text-[0.52rem] tracking-[0.22em] uppercase text-bronze px-3 py-1 border border-border/80 bg-background/95 rounded-full transition-opacity duration-300 ${hovered ? "opacity-100" : "opacity-0"}`}
         >
           {col.count}
         </span>
 
         <span
-          className={`absolute top-3 right-4 font-display font-light italic text-ink/20 text-[clamp(1.5rem,3vw,2.5rem)] leading-none transition-opacity duration-300 ${hovered ? "opacity-0" : "opacity-100"}`}
+          className={`absolute top-4 right-5 font-display font-light italic text-ink/20 text-[clamp(1.5rem,3vw,2.5rem)] leading-none transition-opacity duration-300 ${hovered ? "opacity-0" : "opacity-100"}`}
         >
           {String(col.id).padStart(2, "0")}
         </span>
       </div>
 
-      <div className="shrink-0 p-4 border-t border-border bg-background flex items-end justify-between gap-3">
+      <div className="shrink-0 p-5 border-t border-border bg-background flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p
-            className={`font-body font-light text-[0.72rem] text-muted m-0 mb-1 tracking-[0.04em] transition-all duration-300 ${hovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"}`}
+            className={`font-body font-light text-[0.7rem] text-muted m-0 mb-1.5 tracking-[0.04em] transition-all duration-300 ${hovered ? "opacity-100 translate-y-0" : "opacity-0 translate-y-1"}`}
           >
             {col.tagline}
           </p>
@@ -101,7 +101,7 @@ const CollectionCard = ({ col }) => {
         </div>
 
         <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 border transition-all duration-300 ${
+          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 border transition-all duration-300 ${
             hovered ? "bg-bronze border-bronze" : "bg-surface border-border"
           }`}
         >
@@ -144,42 +144,9 @@ export default function CollectionsGrid() {
 
       <div className="h-px mb-10 bg-gradient-to-r from-bronze/40 to-transparent" />
 
-      <div className="hidden lg:block">
-        <div className="flex gap-3">
-          <div className="relative flex-shrink-0" style={{ width: "33%", height: "680px" }}>
-            <CollectionCard col={collections[0]} />
-          </div>
-
-          <div className="flex flex-col gap-3 flex-1">
-            <div className="flex gap-3" style={{ height: "320px" }}>
-              <div className="relative flex-1">
-                <CollectionCard col={collections[1]} />
-              </div>
-              <div className="relative flex-1">
-                <CollectionCard col={collections[2]} />
-              </div>
-            </div>
-
-            <div className="flex gap-3" style={{ height: "348px" }}>
-              <div className="relative" style={{ width: "55%" }}>
-                <CollectionCard col={collections[3]} />
-              </div>
-              <div className="flex flex-col gap-3 flex-1">
-                <div className="relative flex-1">
-                  <CollectionCard col={collections[4]} />
-                </div>
-                <div className="relative flex-1">
-                  <CollectionCard col={collections[5]} />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="lg:hidden grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {collections.map(col => (
-          <div key={col.id} className="relative" style={{ height: "320px" }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {collections.map((col) => (
+          <div key={col.id} className="relative h-[320px] sm:h-[350px] md:h-[380px] lg:h-[400px]">
             <CollectionCard col={col} />
           </div>
         ))}

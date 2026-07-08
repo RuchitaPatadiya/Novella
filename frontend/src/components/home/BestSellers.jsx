@@ -1,10 +1,9 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
-import { useWishlist } from "../../context/WishlistContext";
 import { useProducts } from "../../context/ProductContext";
+import ProductCard from "../common/ProductCard";
 
 const BestSellers = () => {
-  const { toggleWishlist, isInWishlist } = useWishlist();
   const { products: allProducts, loading } = useProducts();
 
   const scrollRef = useRef(null);
@@ -23,20 +22,20 @@ const BestSellers = () => {
     scrollRef.current?.scrollBy({ left: dir === "left" ? -340 : 340, behavior: "smooth" });
 
   return (
-    <section className="bg-surface py-16 md:py-20 border-y border-border">
+    <section className="bg-surface py-20 md:py-24 border-y border-border/40">
       <div className="px-[clamp(1.5rem,5vw,4rem)]">
 
-        <div className="flex items-start justify-between mb-8 gap-4">
+        {/* Section Header */}
+        <div className="flex items-start justify-between mb-10 gap-4">
           <div>
-            <div className="flex items-center gap-2.5 mb-3">
+            <div className="flex items-center gap-2.5 mb-3.5">
               <span className="block w-5 h-px bg-bronze" />
               <span className="font-body font-normal text-[0.55rem] tracking-[0.38em] uppercase text-bronze">
                 Most Loved
               </span>
             </div>
             <h2 className="font-display font-light text-[clamp(2rem,4vw,3.2rem)] text-ink m-0 leading-[1.1] tracking-[-0.01em]">
-              Best{" "}
-              <em className="text-bronze italic font-medium">Sellers</em>
+              Best <em className="text-bronze italic font-medium">Sellers</em>
             </h2>
           </div>
 
@@ -55,27 +54,30 @@ const BestSellers = () => {
           </Link>
         </div>
 
-        <div className="flex gap-5 items-stretch">
+        {/* Side-by-Side Flex Layout */}
+        <div className="flex flex-col md:flex-row gap-8 items-stretch">
 
-          <div className="shrink-0 w-[clamp(200px,22vw,280px)] border border-border bg-background flex flex-col justify-between p-7 min-h-[420px]">
+          {/* Editorial Accent Sidebar Card */}
+          <div className="shrink-0 w-full md:w-[clamp(240px,24vw,300px)] border border-border/60 bg-background flex flex-col justify-between p-8 rounded-[24px] shadow-sm hover:shadow-md transition-shadow duration-300 min-h-[420px]">
             <div>
-              <p className="font-display font-normal text-[1.3rem] text-ink m-0 mb-2.5 leading-snug">
-                Explore<br />Collections
+              <p className="font-display font-medium text-[1.45rem] text-ink m-0 mb-2 leading-snug tracking-tight">
+                Explore<br />Timeless Pieces
               </p>
-              <p className="font-body font-light text-[0.75rem] text-muted m-0 tracking-[0.06em]">
-                {new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+              <p className="font-body font-normal text-[0.65rem] text-muted tracking-widest uppercase m-0">
+                {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
               </p>
             </div>
 
             <div>
-              <p className="font-body font-normal text-[0.65rem] tracking-[0.25em] uppercase text-bronze m-0 mb-2.5">
-                New 2025
+              <p className="font-body font-semibold text-[0.62rem] tracking-[0.25em] uppercase text-bronze m-0 mb-3">
+                Selected Curations
               </p>
-              <p className="font-body font-light text-[0.8rem] leading-[1.75] text-muted m-0 mb-6">
-                Our collection of timeless, curated home décor is designed to add warmth, comfort and beauty to every corner of your home.
+              <p className="font-body font-light text-[0.8rem] leading-[1.8] text-muted m-0 mb-8">
+                A selection of our most celebrated, dynamic designs, crafted with precision from organic elements to anchor your home in refinement.
               </p>
 
-              <div className="flex gap-2">
+              {/* Slider Controls */}
+              <div className="flex gap-2.5">
                 {[
                   { dir: "left",  path: "M16 4H2M5 7L2 4L5 1",  filled: false },
                   { dir: "right", path: "M2 4H16M13 1L16 4L13 7", filled: true  },
@@ -83,10 +85,11 @@ const BestSellers = () => {
                   <button
                     key={dir}
                     onClick={() => scroll(dir)}
+                    aria-label={`Scroll ${dir}`}
                     className={`w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 border ${
                       filled
-                        ? "border-bronze bg-bronze text-background hover:bg-bronze hover:border-bronze"
-                        : "border-border bg-background text-bronze hover:border-bronze hover:bg-bronze hover:text-background"
+                        ? "border-bronze bg-bronze text-background hover:brightness-110"
+                        : "border-border bg-background text-bronze hover:border-bronze/70"
                     }`}
                   >
                     <svg width="13" height="6" viewBox="0 0 18 8" fill="none">
@@ -98,50 +101,23 @@ const BestSellers = () => {
             </div>
           </div>
 
+          {/* Horizontal Scroll Products List */}
           <div
             ref={scrollRef}
-            className="flex gap-4 overflow-x-auto flex-1 [scrollbar-width:none] [-ms-overflow-style:none] [scroll-snap-type:x_mandatory] [&::-webkit-scrollbar]:hidden"
+            className="flex gap-6 overflow-x-auto flex-1 [scrollbar-width:none] [-ms-overflow-style:none] [scroll-snap-type:x_mandatory] [&::-webkit-scrollbar]:hidden py-2"
           >
-            {products.map(p => (
-              <Link
+            {products.map((p) => (
+              <div
                 key={p.id}
-                to={`/product/${p.id}`}
-                className="shrink-0 w-[clamp(220px,25vw,280px)] block no-underline scroll-snap-start group"
+                className="shrink-0 w-[clamp(220px,25vw,270px)] scroll-snap-start flex flex-col items-stretch"
               >
-                <div className="relative overflow-hidden bg-surface border border-border aspect-[3/4] group-hover:border-bronze/40 transition-colors duration-300">
-                  <img
-                    src={p.images?.[0] || p.image}
-                    alt={p.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleWishlist(p.id);
-                    }}
-                    className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-background/95 border border-border flex items-center justify-center cursor-pointer hover:border-bronze transition-colors duration-200 z-10"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" className="text-bronze"
-                      fill={isInWishlist(p.id) ? "currentColor" : "none"}
-                      stroke="currentColor" strokeWidth="1.8">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="pt-3.5">
-                  <p className="font-display font-medium text-[1rem] text-ink m-0 mb-1 leading-tight group-hover:text-bronze transition-colors duration-200">
-                    {p.name}
-                  </p>
-                  <p className="font-display font-semibold text-[1rem] text-ink m-0">
-                    ₹{p.price.toLocaleString("en-IN")}
-                  </p>
-                </div>
-              </Link>
+                <ProductCard product={p} />
+              </div>
             ))}
 
             <div className="shrink-0 w-4" />
           </div>
+
         </div>
       </div>
     </section>

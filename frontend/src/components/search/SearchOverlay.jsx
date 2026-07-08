@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useProducts } from "../../context/ProductContext";
+import ProductCard from "../common/ProductCard";
 
 const trendingSearches = ["Sofa", "Travertine", "Pendant", "Armchair", "Linen", "Vase"];
 
@@ -198,36 +199,9 @@ export default function SearchOverlay({ isOpen, onClose }) {
                 /* Results grid */
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                   {matchingProducts.slice(0, 10).map((p) => (
-                    <Link
-                      key={p.id}
-                      to={`/product/${p.id}`}
-                      onClick={onClose}
-                      className="no-underline flex flex-col group"
-                    >
-                      {/* Image */}
-                      <div className="relative overflow-hidden bg-surface aspect-[3/4]">
-                        <img
-                          src={p.images?.[0] || p.image}
-                          alt={p.name}
-                          className="w-full h-full object-cover transition-transform duration-600 group-hover:scale-105"
-                        />
-                        {/* Hover overlay */}
-                        <div className="absolute inset-0 bg-ink/0 group-hover:bg-ink/8 transition-all duration-300" />
-                      </div>
-
-                      {/* Info */}
-                      <div className="pt-3">
-                        <p className="font-body font-normal text-[0.52rem] tracking-[0.22em] uppercase text-bronze m-0 mb-1">
-                          {p.category}
-                        </p>
-                        <h4 className="font-display font-medium text-[0.92rem] text-ink m-0 mb-1.5 leading-tight group-hover:text-bronze transition-colors duration-200 truncate">
-                          {p.name}
-                        </h4>
-                        <p className="font-display font-semibold text-[0.9rem] text-ink m-0">
-                          ₹{p.price.toLocaleString("en-IN")}
-                        </p>
-                      </div>
-                    </Link>
+                    <div key={p.id} onClick={onClose} className="cursor-pointer">
+                      <ProductCard product={p} />
+                    </div>
                   ))}
                 </div>
               )}

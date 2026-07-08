@@ -8,6 +8,7 @@ import { useProducts } from "../../context/ProductContext";
 import API from "../../services/api";
 import DOMPurify from "dompurify";
 import { ProductDetailSkeleton } from "../../components/common/Skeleton";
+import ProductCard from "../../components/common/ProductCard";
 
 const ProductDetailPage = () => {
   const { id } = useParams();
@@ -207,14 +208,14 @@ const ProductDetailPage = () => {
       <section className="px-[clamp(1.5rem,5vw,4rem)] py-12 md:py-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16">
           
-          {/* Left Column: Image Gallery (cols: 7) */}
-          <div className="lg:col-span-7 flex flex-col gap-4">
-            {/* Main Image View */}
-            <div className="relative overflow-hidden bg-surface aspect-[4/5] border border-border group">
+          {/* Left Column: Image Gallery (cols: 6) */}
+          <div className="lg:col-span-6 flex flex-col gap-4">
+            {/* Main Image View - using containment and height constraints for readability */}
+            <div className="relative overflow-hidden bg-surface border border-border h-[350px] sm:h-[450px] md:h-[500px] lg:h-[550px] flex items-center justify-center group rounded-[20px]">
               <img
                 src={product.images[activeImageIndex]}
                 alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-102"
+                className="max-w-full max-h-full w-auto h-auto object-contain transition-transform duration-750 group-hover:scale-103"
               />
               {product.badge && (
                 <span className="absolute top-5 left-5 bg-bronze text-background font-body text-[0.55rem] tracking-[0.25em] uppercase px-3.5 py-1.5 font-medium rounded-full">
@@ -225,24 +226,24 @@ const ProductDetailPage = () => {
 
             {/* Thumbnail Controls */}
             {product.images.length > 1 && (
-              <div className="flex gap-3.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {product.images.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`relative w-20 md:w-24 aspect-[4/5] bg-surface border overflow-hidden cursor-pointer transition-colors duration-300 ${
-                      activeImageIndex === idx ? "border-bronze" : "border-border hover:border-bronze/40"
+                    className={`relative w-16 sm:w-20 h-20 sm:h-24 flex-shrink-0 bg-surface border rounded-[12px] overflow-hidden cursor-pointer transition-all duration-300 flex items-center justify-center p-1 ${
+                      activeImageIndex === idx ? "border-bronze shadow-xs" : "border-border hover:border-bronze/40"
                     }`}
                   >
-                    <img src={img} alt={`${product.name} view ${idx + 1}`} className="w-full h-full object-cover" />
+                    <img src={img} alt={`${product.name} view ${idx + 1}`} className="max-w-full max-h-full w-auto h-auto object-contain rounded-[8px]" />
                   </button>
                 ))}
               </div>
             )}
           </div>
 
-          {/* Right Column: Product Info & Buy Box (cols: 5) */}
-          <div className="lg:col-span-5 flex flex-col">
+          {/* Right Column: Product Info & Buy Box (cols: 6) */}
+          <div className="lg:col-span-6 flex flex-col">
             {/* Category Tag */}
             <p className="font-body text-[0.58rem] tracking-[0.3em] uppercase text-bronze m-0 mb-3.5">
               {product.category.replace("-", " ")}
@@ -298,9 +299,10 @@ const ProductDetailPage = () => {
                 <span className="text-red-700 bg-red-50 border border-red-200/50 px-2.5 py-1.5 uppercase text-[0.6rem] tracking-wider font-semibold rounded-xs">
                   Out of Stock
                 </span>
-              ) : product.stock <= 3 ? (
-                <span className="text-bronze font-medium bg-bronze/5 border border-bronze/20 px-2.5 py-1.5 rounded-xs">
-                  Only {product.stock} pieces left in stock — order soon
+              ) : product.stock <= 5 ? (
+                <span className="inline-flex items-center gap-1.5 text-bronze font-medium bg-bronze/5 border border-bronze/20 px-2.5 py-1.5 rounded-xs animate-pulse">
+                  <span className="w-1.5 h-1.5 bg-bronze rounded-full" />
+                  Only {product.stock} pieces remaining — order soon
                 </span>
               ) : (
                 <span className="text-emerald-700 font-medium bg-emerald-50 border border-emerald-200/40 px-2.5 py-1.5 rounded-xs">
@@ -693,43 +695,9 @@ const ProductDetailPage = () => {
             You May Also <em className="text-bronze italic font-medium">Like</em>
           </h2>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {displayRelated.map((p) => (
-              <Link
-                key={p.id}
-                to={`/product/${p.id}`}
-                className="block no-underline group"
-              >
-                <div className="relative overflow-hidden bg-background aspect-[3/4] border border-border group-hover:border-bronze/40 transition-colors duration-300">
-                  <img
-                    src={p.images[0]}
-                    alt={p.name}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-104"
-                  />
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      toggleWishlist(p.id);
-                    }}
-                    className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-background/95 border border-border flex items-center justify-center cursor-pointer hover:border-bronze transition-colors duration-200 z-10"
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" className="text-bronze"
-                      fill={isInWishlist(p.id) ? "currentColor" : "none"}
-                      stroke="currentColor" strokeWidth="1.8">
-                      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                    </svg>
-                  </button>
-                </div>
-                <div className="pt-3.5">
-                  <p className="font-display font-medium text-[0.95rem] text-ink m-0 mb-1 leading-tight group-hover:text-bronze transition-colors duration-200">
-                    {p.name}
-                  </p>
-                  <p className="font-display font-semibold text-[0.95rem] text-ink m-0">
-                    ₹{p.price.toLocaleString("en-IN")}
-                  </p>
-                </div>
-              </Link>
+              <ProductCard key={p.id || p._id} product={p} />
             ))}
           </div>
         </div>

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import API from "../../services/api";
 
 const subjects = [
   "Order Query",
@@ -76,15 +77,32 @@ export default function ContactForm() {
     name: "", email: "", subject: "", message: "",
   });
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleChange = (field) => (e) =>
     setForm((f) => ({ ...f, [field]: e.target.value }));
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitted(true);
-    setTimeout(() => setSubmitted(false), 4000);
-    setForm({ name: "", email: "", subject: "", message: "" });
+    setSubmitting(true);
+    setError("");
+
+    try {
+      await API.post("/contact", {
+        name: form.name,
+        email: form.email,
+        subject: form.subject,
+        message: form.message,
+      });
+      setSubmitted(true);
+      setForm({ name: "", email: "", subject: "", message: "" });
+      setTimeout(() => setSubmitted(false), 5000);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to send message. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -111,13 +129,27 @@ export default function ContactForm() {
           </div>
 
           {/* Success message */}
-          {submitted && (
+           {submitted && (
             <div className="flex items-center gap-3 p-4 mb-6 border border-bronze/30 bg-bronze/5">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B07D3A" strokeWidth="2">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
               <p className="font-body font-normal text-[0.82rem] text-bronze m-0">
                 Message sent! We'll get back to you within 24 hours.
+              </p>
+            </div>
+          )}
+
+          {/* Error message */}
+          {error && (
+            <div className="flex items-center gap-3 p-4 mb-6 border border-red-300/40 bg-red-50">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+              <p className="font-body font-normal text-[0.82rem] text-red-600 m-0">
+                {error}
               </p>
             </div>
           )}
@@ -180,6 +212,7 @@ export default function ContactForm() {
                 value={form.message}
                 onChange={handleChange("message")}
                 required
+                maxLength={500}
                 rows={6}
                 className="w-full bg-background border border-border px-4 py-3 font-body font-light text-[0.85rem] text-ink placeholder:text-muted/40 outline-none resize-none transition-all duration-200 focus:border-bronze"
               />
@@ -191,12 +224,22 @@ export default function ContactForm() {
             {/* Submit */}
             <button
               type="submit"
-              className="self-start inline-flex items-center gap-3 font-body font-medium text-[0.63rem] tracking-[0.28em] uppercase text-dark-deep bg-bronze px-10 py-4 border-none cursor-pointer transition-all duration-300 hover:bg-gold mt-2"
+              disabled={submitting}
+              className={`self-start inline-flex items-center gap-3 font-body font-medium text-[0.63rem] tracking-[0.28em] uppercase text-dark-deep bg-bronze px-10 py-4 border-none cursor-pointer transition-all duration-300 hover:bg-gold mt-2 ${submitting ? "opacity-60 cursor-not-allowed" : ""}`}
             >
-              Send Message
-              <svg width="16" height="7" viewBox="0 0 18 8" fill="none">
-                <path d="M0 4H16M13 1L16 4L13 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              {submitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-dark-deep border-t-transparent rounded-full animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  Send Message
+                  <svg width="16" height="7" viewBox="0 0 18 8" fill="none">
+                    <path d="M0 4H16M13 1L16 4L13 7" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </>
+              )}
             </button>
 
             <p className="font-body font-light text-[0.65rem] text-muted/45 m-0 tracking-[0.03em]">

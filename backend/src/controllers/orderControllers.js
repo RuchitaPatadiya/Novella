@@ -108,8 +108,20 @@ export const createOrder = async (req, res) => {
       orderId,
       date,
       total: `₹${serverTotal.toLocaleString("en-IN")}`,
-      items: `${totalCount} item${totalCount > 1 ? "s" : ""}`,
+      items: sanitizedProducts.map((p) => `${p.name} (x${p.quantity})`).join(", "),
       products: sanitizedProducts,
+      shippingDetails: {
+        name: shippingDetails.name,
+        address: {
+          street: shippingDetails.address?.street || "",
+          apartment: shippingDetails.address?.apartment || "",
+          city: shippingDetails.address?.city || "",
+          state: shippingDetails.address?.state || "",
+          zipCode: shippingDetails.address?.zipCode || "",
+        },
+        phone: shippingDetails.phone,
+        method: shippingDetails.method,
+      },
       paymentDetails: {
         paymentMethod: paymentDetails.method === "razorpay" ? "Razorpay" : (paymentDetails.method || "Card"),
         paymentStatus: paymentDetails.razorpayPaymentId ? "Paid" : "Pending",
@@ -208,6 +220,17 @@ export const getAdminOrders = async (req, res) => {
   }
 };
 
+// Helper to restore product stock when an order is cancelled
+const restoreOrderStock = async (order) => {
+  for (const item of order.products) {
+    const product = await Product.findOne({ id: Number(item.id) });
+    if (product) {
+      product.stock += item.quantity;
+      await product.save();
+    }
+  }
+};
+
 // @desc    Update order shipping/delivery status (Admin Only)
 // @route   PUT /api/orders/:orderId/status
 // @access  Protected/Admin
@@ -218,11 +241,38 @@ export const updateOrderStatus = async (req, res) => {
     const order = await Order.findOne({ orderId: req.params.orderId });
 
     if (order) {
-      // Validation: Cancelled or Returned orders cannot change status
-      if (order.status === "Cancelled" || order.status === "Returned") {
+      // Validation: Cancelled or Returned orders cannot change status (unless admin explicitly resets it)
+      if ((order.status === "Cancelled" || order.status === "Returned") && status === order.status) {
         return res.status(400).json({
           message: `Cannot update status because this order is already ${order.status.toLowerCase()}.`
         });
+      }
+
+      // If transitioning to Cancelled, restore stock
+      if (status === "Cancelled" && order.status !== "Cancelled") {
+        await restoreOrderStock(order);
+      }
+
+      // If moving FROM Cancelled back to active state, re-verify and decrement stock
+      if (order.status === "Cancelled" && status !== "Cancelled") {
+        for (const item of order.products) {
+          const product = await Product.findOne({ id: Number(item.id) });
+          if (product) {
+            if (product.stock < item.quantity) {
+              return res.status(400).json({
+                message: `Cannot reactivate order: Piece "${item.name}" has insufficient stock. Only ${product.stock} left in database.`
+              });
+            }
+          }
+        }
+        // Decrement stock
+        for (const item of order.products) {
+          const product = await Product.findOne({ id: Number(item.id) });
+          if (product) {
+            product.stock -= item.quantity;
+            await product.save();
+          }
+        }
       }
 
       order.status = status;
@@ -282,6 +332,7 @@ export const cancelOrder = async (req, res) => {
     }
 
     order.status = "Cancelled";
+    await restoreOrderStock(order);
     const updatedOrder = await order.save();
     res.status(200).json(updatedOrder);
   } catch (error) {

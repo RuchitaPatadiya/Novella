@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom'
 import SpacesHero from '../../components/space/Spaceshero'
 import ChooseYourSpace from '../../components/space/Chooseyourspace'
-import FeaturedSpace from '../../components/space/FeaturedSpace'
-import InspirationGallery from '../../components/space/InspirationGallery'
+import ShopTheLook from '../../components/space/ShopTheLook'
 import WabiSabiGuide from '../../components/space/WabiSabiGuide'
+import StyledByYou from '../../components/space/StyledByYou'
 import BrandStrip from '../../components/home/BrandStrip'
 
 const SpacePage = () => {
@@ -21,9 +21,9 @@ const SpacePage = () => {
       </div>
       <SpacesHero />
       <ChooseYourSpace />
-      <FeaturedSpace />
-      <InspirationGallery />
+      <ShopTheLook />
       <WabiSabiGuide />
+      <StyledByYou />
       <BrandStrip />
     </div>
   )

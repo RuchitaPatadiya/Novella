@@ -9,6 +9,8 @@ import authRoutes from "./routes/authRoutes.js";
 import productRoutes from "./routes/productRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
 import promoRoutes from "./routes/promoRoutes.js";
+import contactRoutes from "./routes/contactRoutes.js";
+import analyticsRoutes from "./routes/analyticsRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -81,5 +83,11 @@ app.use("/api/orders", orderRoutes);
 
 // Register the Promo routes under /api/promos
 app.use("/api/promos", promoRoutes);
+
+// Register the Contact routes under /api/contact
+app.use("/api/contact", contactRoutes);
+
+// Register the Analytics routes under /api/analytics
+app.use("/api/analytics", analyticsRoutes);
 
 export default app;

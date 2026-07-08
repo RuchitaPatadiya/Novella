@@ -125,21 +125,29 @@ const CartDrawer = () => {
                     </div>
 
                     {/* Price and Quantities */}
-                    <div className="flex items-center justify-between mt-3.5">
-                      <div className="flex items-center border border-border bg-background">
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity - 1, item.color, item.size)}
-                          className="w-6 h-6 flex items-center justify-center border-0 bg-transparent text-muted hover:text-ink cursor-pointer"
-                        >
-                          -
-                        </button>
-                        <span className="w-6 text-center text-ink text-xs">{item.quantity}</span>
-                        <button
-                          onClick={() => updateQuantity(item.id, item.quantity + 1, item.color, item.size)}
-                          className="w-6 h-6 flex items-center justify-center border-0 bg-transparent text-muted hover:text-ink cursor-pointer"
-                        >
-                          +
-                        </button>
+                    <div className="flex items-center justify-between mt-3.5 font-body">
+                      <div>
+                        <div className="flex items-center border border-border bg-background">
+                          <button
+                            onClick={() => updateQuantity(item.id, item.quantity - 1, item.color, item.size)}
+                            className="w-6 h-6 flex items-center justify-center border-0 bg-transparent text-muted hover:text-ink cursor-pointer"
+                          >
+                            -
+                          </button>
+                          <span className="w-6 text-center text-ink text-xs">{item.quantity}</span>
+                          <button
+                            disabled={item.quantity >= p.stock}
+                            onClick={() => updateQuantity(item.id, item.quantity + 1, item.color, item.size)}
+                            className="w-6 h-6 flex items-center justify-center border-0 bg-transparent text-muted hover:text-ink cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            +
+                          </button>
+                        </div>
+                        {item.quantity >= p.stock && (
+                          <span className="text-[0.6rem] text-bronze block mt-1 font-light leading-none">
+                            Max stock reached
+                          </span>
+                        )}
                       </div>
 
                       <button

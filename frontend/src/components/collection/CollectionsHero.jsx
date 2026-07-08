@@ -9,6 +9,7 @@ export default function CollectionsHero() {
         src="https://images.unsplash.com/photo-1618219908412-a29a1bb7b86e?w=1600&q=85"
         alt="Collections Curation"
         className="absolute inset-0 w-full h-full object-cover object-[center_40%] brightness-[0.55] saturate-90"
+        style={{ animation: "kenBurns 24s ease-in-out infinite alternate" }}
       />
 
       {/* Subtle bottom gradient for text contrast */}
@@ -18,7 +19,7 @@ export default function CollectionsHero() {
       <div className="relative z-10 text-center px-6 max-w-3xl">
 
         {/* Eyebrow */}
-        <div className="flex items-center justify-center gap-3 mb-5">
+        <div className="flex items-center justify-center gap-3 mb-5 animate-fadeIn">
           <span className="block w-7 h-px bg-gold" />
           <span className="font-body font-light text-[0.58rem] tracking-[0.42em] uppercase text-gold">
             Novella Curation
@@ -27,13 +28,13 @@ export default function CollectionsHero() {
         </div>
 
         {/* Heading */}
-        <h1 className="font-display font-light text-[clamp(2.5rem,6vw,5rem)] text-cream m-0 leading-[1.05] tracking-[-0.01em]">
+        <h1 className="font-display font-light text-[clamp(2.5rem,6vw,5rem)] text-cream m-0 leading-[1.05] tracking-[-0.01em] animate-fadeIn" style={{ animationDelay: "200ms" }}>
           Discover Our{" "}
           <em className="text-gold font-medium not-italic">Aesthetic</em>
         </h1>
 
         {/* Subtext */}
-        <p className="font-body font-light text-[0.88rem] text-cream-muted/50 mt-4 tracking-[0.04em]">
+        <p className="font-body font-light text-[0.88rem] text-cream-muted/50 mt-4 tracking-[0.04em] animate-fadeIn" style={{ animationDelay: "400ms" }}>
           Six curated worlds. One home. Discover the collection that speaks to you.
         </p>
       </div>
@@ -56,6 +57,10 @@ export default function CollectionsHero() {
           0%   { transform: translateY(-100%); opacity: 0; }
           20%  { opacity: 1; }
           100% { transform: translateY(300%); opacity: 0; }
+        }
+        @keyframes kenBurns {
+          0%   { transform: scale(1) translate(0, 0); }
+          100% { transform: scale(1.08) translate(8px, -4px); }
         }
       `}</style>
     </div>

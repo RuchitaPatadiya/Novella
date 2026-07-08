@@ -1,11 +1,5 @@
 import { Link } from "react-router-dom";
-
-const featuredProducts = [
-  { id: 1, name: "Nouveau Plaster Arc Pendant",   price: "₹9,800",  to: "/product/2" },
-  { id: 2, name: "Atelier Curved Bouclé Sofa",    price: "₹68,000", to: "/product/1" },
-  { id: 3, name: "Pillar Travertine Coffee Table", price: "₹32,000", to: "/product/3" },
-  { id: 4, name: "Asymmetrical Organic Mirror",   price: "₹14,500", to: "/product/5" },
-];
+import { useProducts } from "../../context/ProductContext";
 
 const stats = [
   { number: "24",       label: "Key Pieces"     },
@@ -14,11 +8,35 @@ const stats = [
 ];
 
 export default function FeaturedSpace() {
+  const { products: allProducts, loading } = useProducts();
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center font-body text-sm text-muted">
+        Loading Featured Space...
+      </div>
+    );
+  }
+
+  // Retrieve products belonging to the "living-room" space
+  const livingRoomProducts = allProducts.filter(
+    (p) => p.spaces && p.spaces.includes("living-room")
+  );
+
+  // Fallback to general products if none are tagged yet
+  const displayProducts = livingRoomProducts.length > 0 
+    ? livingRoomProducts.slice(0, 4) 
+    : allProducts.slice(0, 4);
+
+  // Pick the first item as the spotlight piece
+  const spotlightProduct = displayProducts[0];
+
   return (
     <section className="bg-background border-b border-border overflow-hidden">
 
       <div className="flex flex-col lg:flex-row min-h-[580px]">
 
+        {/* Text & Links Column */}
         <div className="flex flex-col justify-center bg-background px-[clamp(2rem,8vw,6rem)] py-16 lg:py-20 lg:w-[42%] shrink-0">
 
           <div className="flex items-center gap-3 mb-7">
@@ -41,11 +59,12 @@ export default function FeaturedSpace() {
             Where conversations flow and memories are made. A thoughtfully curated space that holds warmth, intention, and beauty — all at once.
           </p>
 
+          {/* Dynamic Products List */}
           <div className="flex flex-col gap-2.5 mb-9">
-            {featuredProducts.map((p, i) => (
+            {displayProducts.map((p, i) => (
               <Link
                 key={p.id}
-                to={p.to}
+                to={`/product/${p.id}`}
                 className="no-underline flex items-center justify-between group py-3 px-4 border border-border bg-surface hover:border-bronze/40 transition-all duration-200"
               >
                 <div className="flex items-center gap-3">
@@ -58,7 +77,7 @@ export default function FeaturedSpace() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-display font-medium text-[0.9rem] text-bronze">
-                    {p.price}
+                    ₹{p.price.toLocaleString("en-IN")}
                   </span>
                   <svg
                     width="12" height="6" viewBox="0 0 18 8" fill="none"
@@ -72,7 +91,7 @@ export default function FeaturedSpace() {
           </div>
 
           <Link
-            to="/shop"
+            to="/spaces/living-room"
             className="no-underline self-start inline-flex items-center gap-3 font-body font-medium text-[0.63rem] tracking-[0.28em] uppercase bg-ink text-cream-muted px-8 py-3.5 transition-all duration-300 hover:bg-bronze hover:text-white"
           >
             Shop This Space
@@ -82,6 +101,7 @@ export default function FeaturedSpace() {
           </Link>
         </div>
 
+        {/* Hero Image & Spotlight Card Column */}
         <div className="relative flex-1 min-h-[420px] lg:min-h-0 bg-surface border-t lg:border-t-0 lg:border-l border-border">
           <img
             src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1200&q=85"
@@ -95,30 +115,33 @@ export default function FeaturedSpace() {
             </span>
           </div>
 
-          <div className="absolute bottom-8 right-8 w-[200px] p-4 flex flex-col gap-3 bg-background/95 backdrop-blur-sm border border-border">
-            <img
-              src="https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?q=80&w=687&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
-              alt="Atelier Curved Bouclé Sofa"
-              className="w-full h-28 object-cover border border-border"
-            />
-            <div>
-              <p className="font-body font-normal text-[0.5rem] tracking-[0.28em] uppercase text-muted m-0 mb-1">
-                Spotlight Piece
-              </p>
-              <p className="font-display font-medium text-[0.92rem] text-ink m-0 mb-0.5 leading-tight">
-                Atelier Curved Bouclé Sofa
-              </p>
-              <p className="font-display font-light text-[0.85rem] text-bronze m-0">
-                ₹68,000
-              </p>
+          {/* Dynamic Spotlight Piece Card */}
+          {spotlightProduct && (
+            <div className="absolute bottom-8 right-8 w-[200px] p-4 flex flex-col gap-3 bg-background/95 backdrop-blur-sm border border-border">
+              <img
+                src={spotlightProduct.images?.[0] || spotlightProduct.image}
+                alt={spotlightProduct.name}
+                className="w-full h-28 object-cover border border-border"
+              />
+              <div>
+                <p className="font-body font-normal text-[0.5rem] tracking-[0.28em] uppercase text-muted m-0 mb-1">
+                  Spotlight Piece
+                </p>
+                <p className="font-display font-medium text-[0.92rem] text-ink m-0 mb-0.5 leading-tight line-clamp-2">
+                  {spotlightProduct.name}
+                </p>
+                <p className="font-display font-light text-[0.85rem] text-bronze m-0">
+                  ₹{spotlightProduct.price.toLocaleString("en-IN")}
+                </p>
+              </div>
+              <Link
+                to={`/product/${spotlightProduct.id}`}
+                className="no-underline w-full text-center font-body font-medium text-[0.55rem] tracking-[0.2em] uppercase text-cream-muted bg-ink py-2 transition-colors duration-200 hover:bg-bronze"
+              >
+                View Product
+              </Link>
             </div>
-            <Link
-              to="/product/1"
-              className="no-underline w-full text-center font-body font-medium text-[0.55rem] tracking-[0.2em] uppercase text-cream-muted bg-ink py-2 transition-colors duration-200 hover:bg-bronze"
-            >
-              View Product
-            </Link>
-          </div>
+          )}
         </div>
       </div>
 

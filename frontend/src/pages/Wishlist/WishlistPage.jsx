@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { useWishlist } from "../../context/WishlistContext";
 import { useProducts } from "../../context/ProductContext";
 import BrandStrip from "../../components/home/BrandStrip";
+import ProductCard from "../../components/common/ProductCard";
 
 const WishlistPage = () => {
   const { wishlist, toggleWishlist, clearWishlist } = useWishlist();
@@ -85,95 +86,7 @@ const WishlistPage = () => {
           /* Active Grid */
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-12">
             {wishlistedProducts.map((p) => (
-              <div key={p.id} className="flex flex-col group animate-fadeIn">
-                {/* Product Card Image Container */}
-                <div className="relative overflow-hidden bg-surface border border-border aspect-[3/4] group-hover:border-bronze/35 transition-colors duration-300">
-                  <Link to={`/product/${p.id}`}>
-                    <img
-                      src={p.images[0]}
-                      alt={p.name}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-104"
-                    />
-                  </Link>
-
-                  {/* Remove Button overlay */}
-                  <button
-                    onClick={() => toggleWishlist(p.id)}
-                    aria-label={`Remove ${p.name} from wishlist`}
-                    className="absolute top-2.5 right-2.5 w-8 h-8 rounded-full bg-background/95 border border-border flex items-center justify-center cursor-pointer hover:border-bronze hover:bg-bronze hover:text-background transition-all duration-250 text-bronze shadow-sm"
-                  >
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <line x1="18" y1="6" x2="6" y2="18" />
-                      <line x1="6" y1="6" x2="18" y2="18" />
-                    </svg>
-                  </button>
-
-                  {p.badge && (
-                    <span className="absolute top-2.5 left-2.5 font-body font-medium text-[0.5rem] tracking-[0.18em] uppercase px-2.5 py-1 bg-ink text-gold">
-                      {p.badge}
-                    </span>
-                  )}
-                </div>
-
-                {/* Card Bottom Description */}
-                <div className="pt-3.5 flex flex-col flex-1">
-                  <Link to={`/product/${p.id}`} className="no-underline">
-                    <p className="font-display font-medium text-[1rem] text-ink m-0 mb-1.5 leading-tight hover:text-bronze transition-colors duration-200">
-                      {p.name}
-                    </p>
-                  </Link>
-
-                  {/* Rating Block */}
-                  <div className="flex items-center gap-1.5 mb-2">
-                    <div className="flex gap-0.5 text-bronze">
-                      {[1, 2, 3, 4, 5].map((s) => (
-                        <svg
-                          key={s}
-                          width="9"
-                          height="9"
-                          viewBox="0 0 24 24"
-                          fill={s <= Math.round(p.rating) ? "currentColor" : "none"}
-                          stroke="currentColor"
-                          strokeWidth="1.8"
-                        >
-                          <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-                        </svg>
-                      ))}
-                    </div>
-                    <span className="font-body font-light text-[0.62rem] text-muted">
-                      ({p.reviewsCount})
-                    </span>
-                  </div>
-
-                  {/* Price Block */}
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="font-display font-semibold text-[1rem] text-ink">
-                      ₹{p.price.toLocaleString("en-IN")}
-                    </span>
-                    {p.originalPrice && (
-                      <span className="font-body font-light text-[0.75rem] text-muted line-through">
-                        ₹{p.originalPrice.toLocaleString("en-IN")}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Remove text CTA and View details */}
-                  <div className="flex items-center justify-between border-t border-border/60 pt-3 mt-auto">
-                    <button
-                      onClick={() => toggleWishlist(p.id)}
-                      className="font-body font-normal text-[0.58rem] tracking-[0.15em] uppercase text-muted hover:text-red-700 bg-transparent border-0 cursor-pointer p-0 transition-colors duration-150"
-                    >
-                      Remove
-                    </button>
-                    <Link
-                      to={`/product/${p.id}`}
-                      className="no-underline font-body font-medium text-[0.58rem] tracking-[0.15em] uppercase text-bronze hover:brightness-90 transition-all duration-150"
-                    >
-                      View Details ➔
-                    </Link>
-                  </div>
-                </div>
-              </div>
+              <ProductCard key={p.id || p._id} product={p} />
             ))}
           </div>
         )}

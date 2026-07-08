@@ -82,16 +82,6 @@ export default function AboutHero() {
             <p className="font-body font-light text-[0.9rem] text-muted leading-[1.85] tracking-[0.03em] m-0">
               Every piece in our edit is chosen with intention — for its craft, its story, and the quiet confidence it brings to a room.
             </p>
-
-            <Link
-              to="#our-story"
-              className="no-underline inline-flex items-center gap-2.5 mt-7 font-body font-medium text-[0.63rem] tracking-[0.25em] uppercase text-bronze border-b border-bronze/40 pb-0.5 hover:text-ink hover:border-ink transition-colors duration-200"
-            >
-              Read Our Story
-              <svg width="14" height="6" viewBox="0 0 18 8" fill="none" className="text-bronze">
-                <path d="M0 4H16M13 1L16 4L13 7" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
           </div>
         </div>
       </div>

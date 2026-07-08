@@ -17,6 +17,7 @@ const productSchema = new mongoose.Schema(
       required: [true, "Product category is required"],
       lowercase: true,
       enum: ["furniture", "lighting", "wall-decor", "textiles", "decor-accessories"],
+      index: true,
     },
     price: {
       type: Number,
@@ -64,10 +65,12 @@ const productSchema = new mongoose.Schema(
     spaces: {
       type: [String],
       default: [], // e.g., ["living-room", "bedroom"]
+      index: true,
     },
     collections: {
       type: [String],
       default: [], // e.g., ["modern-minimalist", "best-sellers"]
+      index: true,
     },
   },
   {

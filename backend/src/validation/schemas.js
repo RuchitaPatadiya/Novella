@@ -67,9 +67,9 @@ export const orderSchema = Joi.object({
       name: Joi.string().required(),
       price: Joi.number().positive().required(),
       quantity: Joi.number().integer().positive().required(),
-      color: Joi.string().allow("").optional(),
-      size: Joi.string().allow("").optional(),
-      image: Joi.string().allow("").optional(),
+      color: Joi.string().allow(null, "").optional(),
+      size: Joi.string().allow(null, "").optional(),
+      image: Joi.string().allow(null, "").optional(),
     })
   ).min(1).required().messages({
     "array.min": "An order must contain at least 1 product.",
@@ -121,15 +121,15 @@ export const razorpayOrderSchema = Joi.object({
       name: Joi.string().required(),
       price: Joi.number().positive().required(),
       quantity: Joi.number().integer().positive().required(),
-      color: Joi.string().allow("").optional(),
-      size: Joi.string().allow("").optional(),
-      image: Joi.string().allow("").optional(),
-    })
+      color: Joi.string().allow(null, "").optional(),
+      size: Joi.string().allow(null, "").optional(),
+      image: Joi.string().allow(null, "").optional(),
+    }).unknown(true)
   ).min(1).required(),
   shippingDetails: Joi.object({
     method: Joi.string().valid("standard", "express").required(),
-  }).required(),
+  }).unknown(true).required(),
   pricingBreakdown: Joi.object({
     promoCode: Joi.string().allow(null, "").optional(),
-  }).optional(),
+  }).unknown(true).optional(),
 });
