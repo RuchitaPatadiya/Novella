@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import ShopHero        from "../../components/shop/ShopHero";
+import AtelierHero      from "../../components/common/AtelierHero";
 import ShopCategories  from "../../components/shop/ShopCategories";
 import ShopFilterBar   from "../../components/shop/ShopFilterBar";
 import ShopProductGrid from "../../components/shop/Shopproductgrid";
@@ -27,8 +27,20 @@ const getProductType = (name) => {
 
 const ShopPage = () => {
   const { products: allProducts, loading } = useProducts();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const aiSearch = searchParams.get("aiSearch");
+  const aiMaxPrice = searchParams.get("aiMaxPrice");
+  const aiCategory = searchParams.get("aiCategory");
+  const aiSpace = searchParams.get("aiSpace");
+  const aiExcludeColor = searchParams.get("aiExcludeColor");
 
-  const [searchParams] = useSearchParams();
+  const aiFilters = (aiSearch || aiMaxPrice || aiCategory || aiSpace || aiExcludeColor) ? {
+    searchQuery: aiSearch || "",
+    maxPrice: aiMaxPrice ? parseFloat(aiMaxPrice) : null,
+    category: aiCategory || null,
+    space: aiSpace || null,
+    excludeColor: aiExcludeColor || null
+  } : null;
   const categoryFromUrl = searchParams.get("category");
   const validCategories = ["all", "furniture", "lighting", "wall-decor", "textiles", "decor-accessories"];
   const initialCategory = validCategories.includes(categoryFromUrl) ? categoryFromUrl : "all";
@@ -43,7 +55,7 @@ const ShopPage = () => {
   
   const [sortBy, setSortBy] = useState("bestsellers");
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [priceRange, setPriceRange] = useState([0, 80000]);
+  const [priceRange, setPriceRange] = useState([0, 150000]);
   const productRef = useRef(null);
 
   useEffect(() => {
@@ -90,6 +102,43 @@ const ShopPage = () => {
   // 5. Filter by Price Range
   filteredProducts = filteredProducts.filter(p => p.price >= priceRange[0] && p.price <= priceRange[1]);
 
+  // 5b. Filter by AI Curator extracts
+  if (aiFilters) {
+    if (aiFilters.searchQuery) {
+      const keywords = aiFilters.searchQuery.toLowerCase().split(/[\s,;]+/).filter(w => w.length > 2);
+      if (keywords.length > 0) {
+        filteredProducts = filteredProducts.filter(p => {
+          const name = p.name.toLowerCase();
+          const desc = (p.description || "").toLowerCase();
+          const cat = (p.category || "").toLowerCase();
+          return keywords.some(word => name.includes(word) || desc.includes(word) || cat.includes(word));
+        });
+      }
+    }
+    if (aiFilters.maxPrice) {
+      filteredProducts = filteredProducts.filter(p => p.price <= aiFilters.maxPrice);
+    }
+    if (aiFilters.category) {
+      const targetCat = aiFilters.category.toLowerCase().replace(/[^a-z0-9]/g, "");
+      filteredProducts = filteredProducts.filter(p => {
+        const cat = (p.category || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+        return cat.includes(targetCat) || targetCat.includes(cat);
+      });
+    }
+    if (aiFilters.space) {
+      const targetSpace = aiFilters.space.toLowerCase().replace(/[^a-z0-9]/g, "");
+      filteredProducts = filteredProducts.filter(p => 
+        p.spaces && p.spaces.some(s => s.toLowerCase().replace(/[^a-z0-9]/g, "") === targetSpace)
+      );
+    }
+    if (aiFilters.excludeColor) {
+      filteredProducts = filteredProducts.filter(p => {
+        const colorString = (p.color || p.description || p.name || "").toLowerCase();
+        return !colorString.includes(aiFilters.excludeColor.toLowerCase());
+      });
+    }
+  }
+
   // 6. Sort results
   if (sortBy === "price-asc") {
     filteredProducts = [...filteredProducts].sort((a, b) => a.price - b.price);
@@ -121,7 +170,8 @@ const ShopPage = () => {
     setActiveType("all");
     setSelectedSpaces([]);
     setSelectedCollections([]);
-    setPriceRange([0, 80000]);
+    setPriceRange([0, 150000]);
+    setSearchParams({});
   };
 
   return (
@@ -138,7 +188,17 @@ const ShopPage = () => {
         </div>
       </div>
 
-      <ShopHero totalProducts={allProducts.length} />
+      <AtelierHero 
+        eyebrow="The Atelier Edit"
+        title="Decor Carnival Sale"
+        subtitle="Flat 40% Off + Extra 5% Off on Prepaid Orders. Discover a curated collection of luxury wabi-sabi home decor pieces."
+        bottomText="↓ Discover Catalog ↓"
+        images={[
+          "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=400&q=80",
+          "https://images.unsplash.com/photo-1618220179428-22790b461013?w=400&q=80",
+          "https://images.unsplash.com/photo-1615876234886-fd9a39fda97f?w=400&q=80"
+        ]}
+      />
 
       {/* Dynamic Circle Type Horizontal Scroll selector */}
       <ShopCategories

@@ -1,5 +1,6 @@
 import { useProducts } from "../../context/ProductContext";
 import ShopProductGrid from "../shop/Shopproductgrid";
+import AtelierHero from "../common/AtelierHero";
 
 const BohoChic = () => {
   const { products, loading } = useProducts();
@@ -22,28 +23,17 @@ const BohoChic = () => {
   return (
     <div className="bg-background">
       {/* Collection Hero */}
-      <section className="relative w-full h-[50vh] min-h-[350px] overflow-hidden flex items-center">
-        <img
-          src="https://images.unsplash.com/photo-1540518614846-7eded433c457?w=1600&q=80"
-          alt="Boho Chic Collection"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-dark/70" />
-        <div className="relative z-10 w-full px-[clamp(1.5rem,5vw,4rem)] text-left max-w-4xl">
-          <div className="flex items-center gap-2.5 mb-3.5">
-            <span className="block w-5 h-px bg-gold" />
-            <span className="font-body font-normal text-[0.58rem] text-gold tracking-[0.4em] uppercase">
-              Curated Collection
-            </span>
-          </div>
-          <h1 className="font-display font-light text-[clamp(2.2rem,4.5vw,4rem)] text-cream m-0 mb-3.5">
-            Boho <em className="text-gold italic font-medium">Chic</em>
-          </h1>
-          <p className="font-body font-light text-[clamp(0.85rem,1.1vw,1rem)] leading-relaxed text-cream-muted/75 max-w-2xl">
-            Free-spirited layers and organic structures. The Boho Chic collection captures relaxed artistic beauty, layering hand-woven rattan mirrors, textured jute rugs, and raw ceramics.
-          </p>
-        </div>
-      </section>
+      <AtelierHero 
+        eyebrow="Eclectic Craft"
+        title="Boho Chic"
+        subtitle="Free-spirited layers and organic structures. The Boho Chic collection captures relaxed artistic beauty, layering hand-woven rattan mirrors, textured jute rugs, and raw ceramics."
+        bottomText="↓ Discover Collection ↓"
+        images={[
+          "https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=400&q=80",
+          "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=400&q=80",
+          "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=400&q=80"
+        ]}
+      />
 
       {/* Philosophy Callout */}
       <section className="px-[clamp(1.5rem,5vw,4rem)] py-12 md:py-16 bg-surface border-b border-border">

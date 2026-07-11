@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import API from "../../services/api";
 
-const faqs = [
+const fallbackFaqs = [
   {
     id: 1,
     question: "How long does delivery take?",
@@ -18,24 +19,6 @@ const faqs = [
     question: "Do you accept custom orders?",
     answer:
       "Yes! Our design team loves working on custom pieces. Whether it's a specific size, finish, or a completely bespoke design, reach out to us at hello@novella.in with your requirements and we'll get back to you within 48 hours with a quote.",
-  },
-  {
-    id: 4,
-    question: "Can I get styling advice for my space?",
-    answer:
-      "Absolutely. We offer complimentary styling consultations for orders above ₹25,000. For all other enquiries, our designers are available for a paid 45-minute virtual consultation. Book via the 'Styling Advice' card above or email us directly.",
-  },
-  {
-    id: 5,
-    question: "Are all pieces designed by Novella?",
-    answer:
-      "Yes — every single piece in the Novella collection is conceived and designed entirely by our in-house team at our Mumbai studio. We don't resell or white-label other brands. What you see is original Novella design, crafted to our specifications.",
-  },
-  {
-    id: 6,
-    question: "Do you ship internationally?",
-    answer:
-      "Currently we ship across India only. We're working on international shipping and hope to launch it soon. Sign up for our newsletter to be the first to know when we expand.",
   },
 ];
 
@@ -94,9 +77,28 @@ const FAQItem = ({ faq, isOpen, onToggle }) => (
 );
 
 export default function FAQStrip() {
-  const [openId, setOpenId] = useState(1);
+  const [openId, setOpenId] = useState(null);
+  const [faqs, setFaqs] = useState(fallbackFaqs);
 
-  const toggle = (id) => setOpenId(openId === id ? null : id);
+  useEffect(() => {
+    const fetchFaqs = async () => {
+      try {
+        const res = await API.get("/cms/faqs_list");
+        if (res.data && Array.isArray(res.data)) {
+          setFaqs(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load CMS FAQs settings:", err);
+      }
+    };
+    fetchFaqs();
+  }, []);
+
+  const toggle = (idx) => setOpenId(openId === idx ? null : idx);
+
+  const midPoint = Math.ceil(faqs.length / 2);
+  const leftFaqs = faqs.slice(0, midPoint);
+  const rightFaqs = faqs.slice(midPoint);
 
   return (
     <section className="bg-background py-20 px-[clamp(2rem,8vw,6rem)]">
@@ -131,14 +133,14 @@ export default function FAQStrip() {
         {/* ── Two column FAQ layout ── */}
         <div className="flex flex-col lg:flex-row gap-12">
 
-          {/* Left column — first 3 FAQs */}
+          {/* Left column — first half FAQs */}
           <div className="flex-1">
-            {faqs.slice(0, 3).map((faq) => (
+            {leftFaqs.map((faq, idx) => (
               <FAQItem
-                key={faq.id}
+                key={idx}
                 faq={faq}
-                isOpen={openId === faq.id}
-                onToggle={() => toggle(faq.id)}
+                isOpen={openId === idx}
+                onToggle={() => toggle(idx)}
               />
             ))}
           </div>
@@ -146,16 +148,19 @@ export default function FAQStrip() {
           {/* Divider — vertical on desktop */}
           <div className="hidden lg:block w-px bg-border flex-shrink-0" />
 
-          {/* Right column — last 3 FAQs */}
+          {/* Right column — second half FAQs */}
           <div className="flex-1">
-            {faqs.slice(3).map((faq) => (
-              <FAQItem
-                key={faq.id}
-                faq={faq}
-                isOpen={openId === faq.id}
-                onToggle={() => toggle(faq.id)}
-              />
-            ))}
+            {rightFaqs.map((faq, idx) => {
+              const actualIdx = idx + midPoint;
+              return (
+                <FAQItem
+                  key={actualIdx}
+                  faq={faq}
+                  isOpen={openId === actualIdx}
+                  onToggle={() => toggle(actualIdx)}
+                />
+              );
+            })}
           </div>
         </div>
 

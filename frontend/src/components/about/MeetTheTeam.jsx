@@ -1,34 +1,44 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import API from "../../services/api";
 
-const team = [
+const fallbackTeam = [
   {
-    id: 1,
-    name: "Aanya Sharma",
+    name: "Ananya Sharma",
     role: "Founder & Creative Director",
-    quote: "I design for the moments you don't notice — the way morning light hits a surface, the way a chair invites you to sit.",
+    bio: "I design for the moments you don't notice — the way morning light hits a surface, the way a chair invites you to sit.",
     image: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=600&q=85",
-    initial: "A",
   },
   {
-    id: 2,
     name: "Rohan Mehta",
     role: "Head of Product Design",
-    quote: "Good design is invisible. You shouldn't think about a chair — you should just feel at home in it.",
+    bio: "Good design is invisible. You shouldn't think about a chair — you should just feel at home in it.",
     image: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=85",
-    initial: "R",
   },
   {
-    id: 3,
     name: "Priya Nair",
     role: "Lead Interior Stylist",
-    quote: "Every collection starts with a question — what kind of life does this space want to support?",
+    bio: "Every collection starts with a question — what kind of life does this space want to support?",
     image: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=600&q=85",
-    initial: "P",
   },
 ];
 
 export default function MeetTheTeam() {
   const [hoveredId, setHoveredId] = useState(null);
+  const [team, setTeam] = useState(fallbackTeam);
+
+  useEffect(() => {
+    const fetchTeam = async () => {
+      try {
+        const res = await API.get("/cms/team_members");
+        if (res.data && Array.isArray(res.data)) {
+          setTeam(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load CMS team settings:", err);
+      }
+    };
+    fetchTeam();
+  }, []);
 
   return (
     <section className="bg-surface py-20 px-[clamp(2rem,8vw,6rem)] border-y border-border">
@@ -57,13 +67,15 @@ export default function MeetTheTeam() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {team.map((member, i) => {
-            const hovered = hoveredId === member.id;
+            const memberId = member.name.replace(/\s+/g, "-");
+            const hovered = hoveredId === memberId;
+            const initialLetter = member.name.charAt(0);
 
             return (
               <div
-                key={member.id}
+                key={memberId}
                 className="group flex flex-col overflow-hidden border border-border bg-background hover:border-bronze/40 transition-colors duration-300"
-                onMouseEnter={() => setHoveredId(member.id)}
+                onMouseEnter={() => setHoveredId(memberId)}
                 onMouseLeave={() => setHoveredId(null)}
               >
                 <div className="relative h-[380px] overflow-hidden bg-surface">
@@ -84,7 +96,7 @@ export default function MeetTheTeam() {
                       hovered ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-1 h-0 overflow-hidden"
                     }`}
                   >
-                    "{member.quote}"
+                    "{member.bio || member.quote}"
                   </p>
 
                   <div className="flex items-start justify-between gap-3">
@@ -99,7 +111,7 @@ export default function MeetTheTeam() {
 
                     <div className="w-10 h-10 flex items-center justify-center shrink-0 border border-border transition-all duration-300 group-hover:border-bronze">
                       <span className="font-display font-medium text-[1rem] text-muted group-hover:text-bronze transition-colors duration-300">
-                        {member.initial}
+                        {initialLetter}
                       </span>
                     </div>
                   </div>
@@ -113,7 +125,7 @@ export default function MeetTheTeam() {
           <div className="flex items-center shrink-0">
             {team.map((m, i) => (
               <div
-                key={m.id}
+                key={m.name}
                 className="w-10 h-10 rounded-full overflow-hidden border-2 border-background"
                 style={{ marginLeft: i === 0 ? "0" : "-10px", zIndex: team.length - i }}
               >

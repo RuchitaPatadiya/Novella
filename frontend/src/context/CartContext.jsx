@@ -13,7 +13,7 @@ export const CartProvider = ({ children }) => {
   const [cart, setCart] = useState([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
 
-  // Load user-specific cart when user shifts
+  // Load user-specific cart when user shifts (checks ID instead of object reference)
   useEffect(() => {
     if (user) {
       try {
@@ -25,14 +25,14 @@ export const CartProvider = ({ children }) => {
     } else {
       setCart([]);
     }
-  }, [user]);
+  }, [user?.id]);
 
   // Sync cart to localStorage
   useEffect(() => {
     if (user) {
       localStorage.setItem(`novella_cart_${user.id}`, JSON.stringify(cart));
     }
-  }, [cart, user]);
+  }, [cart, user?.id]);
 
   const addToCart = (productId, quantity = 1, color = null, size = null) => {
     if (!user) {
@@ -40,13 +40,56 @@ export const CartProvider = ({ children }) => {
       navigate("/login", { state: { from: location } });
       return;
     }
+
+    const product = products.find((p) => Number(p.id) === Number(productId));
+    if (!product) {
+      alert("Product not found.");
+      return;
+    }
+
+    const stock = product.stock !== undefined ? product.stock : 0;
+    
+    // 1. Immediate sync check against current render state
+    const existingItem = cart.find(
+      (item) =>
+        Number(item.id) === Number(productId) &&
+        (item.color || null) === (color || null) &&
+        (item.size || null) === (size || null)
+    );
+
+    const currentQtyInCart = existingItem ? existingItem.quantity : 0;
+    const newTotalQty = currentQtyInCart + quantity;
+
+    if (newTotalQty > stock) {
+      if (stock === 0) {
+        alert("This item is currently out of stock.");
+      } else if (currentQtyInCart > 0) {
+        alert(`Cannot add more of this item. You already have ${currentQtyInCart} in your cart, which is the maximum available stock (${stock}).`);
+      } else {
+        alert(`Cannot add ${quantity} of this item. Only ${stock} items are left in stock.`);
+      }
+      return;
+    }
+
+    // 2. Queue the state update with secondary guard checking absolute latest state
     setCart((prev) => {
-      // Check if product with same options already exists
+      const existingLatest = prev.find(
+        (item) =>
+          Number(item.id) === Number(productId) &&
+          (item.color || null) === (color || null) &&
+          (item.size || null) === (size || null)
+      );
+
+      const latestQtyInCart = existingLatest ? existingLatest.quantity : 0;
+      if (latestQtyInCart + quantity > stock) {
+        return prev; // Race condition block: abort update
+      }
+
       const existingIdx = prev.findIndex(
         (item) =>
-          item.id === productId &&
-          item.color === color &&
-          item.size === size
+          Number(item.id) === Number(productId) &&
+          (item.color || null) === (color || null) &&
+          (item.size || null) === (size || null)
       );
 
       if (existingIdx > -1) {
@@ -54,7 +97,7 @@ export const CartProvider = ({ children }) => {
         updated[existingIdx].quantity += quantity;
         return updated;
       } else {
-        return [...prev, { id: productId, quantity, color, size }];
+        return [...prev, { id: Number(productId), quantity, color, size }];
       }
     });
     setIsCartOpen(true);
@@ -64,7 +107,11 @@ export const CartProvider = ({ children }) => {
     setCart((prev) =>
       prev.filter(
         (item) =>
-          !(item.id === productId && item.color === color && item.size === size)
+          !(
+            Number(item.id) === Number(productId) &&
+            (item.color || null) === (color || null) &&
+            (item.size || null) === (size || null)
+          )
       )
     );
   };
@@ -74,9 +121,21 @@ export const CartProvider = ({ children }) => {
       removeFromCart(productId, color, size);
       return;
     }
+
+    const product = products.find((p) => Number(p.id) === Number(productId));
+    if (product) {
+      const stock = product.stock !== undefined ? product.stock : 0;
+      if (newQty > stock) {
+        alert(`Cannot update quantity to ${newQty}. Only ${stock} items are left in stock.`);
+        return;
+      }
+    }
+
     setCart((prev) =>
       prev.map((item) =>
-        item.id === productId && item.color === color && item.size === size
+        Number(item.id) === Number(productId) &&
+        (item.color || null) === (color || null) &&
+        (item.size || null) === (size || null)
           ? { ...item, quantity: newQty }
           : item
       )

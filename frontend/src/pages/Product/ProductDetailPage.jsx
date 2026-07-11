@@ -217,8 +217,42 @@ const ProductDetailPage = () => {
                 alt={product.name}
                 className="max-w-full max-h-full w-auto h-auto object-contain transition-transform duration-750 group-hover:scale-103"
               />
+              
+              {/* Navigation Arrows */}
+              {product.images.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setActiveImageIndex((prev) => (prev === 0 ? product.images.length - 1 : prev - 1));
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-ink text-ink hover:text-background flex items-center justify-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 z-10 backdrop-blur-xs border-0 md:opacity-0 group-hover:opacity-100 opacity-90"
+                    aria-label="Previous Image"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+                    </svg>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setActiveImageIndex((prev) => (prev === product.images.length - 1 ? 0 : prev + 1));
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-ink text-ink hover:text-background flex items-center justify-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 z-10 backdrop-blur-xs border-0 md:opacity-0 group-hover:opacity-100 opacity-90"
+                    aria-label="Next Image"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                </>
+              )}
+
               {product.badge && (
-                <span className="absolute top-5 left-5 bg-bronze text-background font-body text-[0.55rem] tracking-[0.25em] uppercase px-3.5 py-1.5 font-medium rounded-full">
+                <span className="absolute top-5 left-5 bg-bronze text-background font-body text-[0.55rem] tracking-[0.25em] uppercase px-3.5 py-1.5 font-medium rounded-full z-10">
                   {product.badge}
                 </span>
               )}

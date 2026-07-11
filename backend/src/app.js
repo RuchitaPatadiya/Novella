@@ -11,6 +11,10 @@ import orderRoutes from "./routes/orderRoutes.js";
 import promoRoutes from "./routes/promoRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
+import assistantRoutes from "./routes/assistantRoutes.js";
+import cmsRoutes from "./routes/cmsRoutes.js";
+import categoryRoutes from "./routes/categoryRoutes.js";
+import collectionRoutes from "./routes/collectionRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,9 +55,11 @@ app.get("/", (req, res) => {
 });
 
 // Rate Limiting configurations to prevent abuse and brute force
+const isDev = process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
+
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 200,
+  max: isDev ? 50000 : 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many requests from this IP, please try again after 15 minutes." }
@@ -61,7 +67,7 @@ const generalLimiter = rateLimit({
 
 const sensitiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 30,
+  max: isDev ? 10000 : 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { message: "Too many sensitive operations requested from this IP, please try again after 15 minutes." }
@@ -89,5 +95,17 @@ app.use("/api/contact", contactRoutes);
 
 // Register the Analytics routes under /api/analytics
 app.use("/api/analytics", analyticsRoutes);
+
+// Register the Assistant routes under /api/assistant
+app.use("/api/assistant", assistantRoutes);
+
+// Register the CMS routes under /api/cms
+app.use("/api/cms", cmsRoutes);
+
+// Register the Category routes under /api/categories
+app.use("/api/categories", categoryRoutes);
+
+// Register the Collection routes under /api/collections
+app.use("/api/collections", collectionRoutes);
 
 export default app;

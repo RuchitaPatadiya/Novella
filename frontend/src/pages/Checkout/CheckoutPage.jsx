@@ -6,7 +6,7 @@ import { useProducts } from "../../context/ProductContext";
 import API from "../../services/api";
 
 const CheckoutPage = () => {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, addAddress } = useAuth();
   const { cart, clearCart, cartSubtotal } = useCart();
   const { products } = useProducts();
   const navigate = useNavigate();
@@ -30,12 +30,53 @@ const CheckoutPage = () => {
     city: user?.address?.city || "",
     state: user?.address?.state || "",
     zipCode: user?.address?.zipCode || "",
-    method: "standard", // standard or express
+    method: "standard",
   });
+
+  const [billingSameAsShipping, setBillingSameAsShipping] = useState(true);
+  const [billingForm, setBillingForm] = useState({
+    name: "",
+    phone: "",
+    street: "",
+    apartment: "",
+    city: "",
+    state: "",
+    zipCode: "",
+  });
+
+  const [paymentMethod, setPaymentMethod] = useState("razorpay");
+
+  const [checkoutSettings, setCheckoutSettings] = useState({
+    standardShippingFee: 0,
+    expressShippingFee: 500,
+    freeShippingThreshold: 25000,
+    codFee: 50,
+    taxRate: 18
+  });
+
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await API.get("/cms/checkout_settings");
+        if (res.data) {
+          setCheckoutSettings({
+            standardShippingFee: Number(res.data.standardShippingFee) ?? 0,
+            expressShippingFee: Number(res.data.expressShippingFee) ?? 500,
+            freeShippingThreshold: Number(res.data.freeShippingThreshold) ?? 25000,
+            codFee: Number(res.data.codFee) ?? 50,
+            taxRate: Number(res.data.taxRate) ?? 18
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load checkout settings:", err);
+      }
+    };
+    fetchSettings();
+  }, []);
 
   const [savedAddresses, setSavedAddresses] = useState([]);
   const [addressesLoading, setAddressesLoading] = useState(true);
-  const [saveAddressToProfile, setSaveAddressToProfile] = useState(false);
+
 
   useEffect(() => {
     const fetchSavedAddresses = async () => {
@@ -52,6 +93,25 @@ const CheckoutPage = () => {
     fetchSavedAddresses();
   }, []);
 
+  // Auto-select the user's default saved address on mount/load
+  useEffect(() => {
+    if (savedAddresses.length > 0) {
+      const defaultAddr = savedAddresses.find((a) => a.isDefault);
+      if (defaultAddr) {
+        setShippingForm((prev) => ({
+          ...prev,
+          name: prev.name && prev.name !== "Home" && prev.name !== "Office" && !prev.name.startsWith("Shipping:") ? prev.name : (user.name || ""),
+          phone: defaultAddr.phone || prev.phone,
+          street: defaultAddr.street || "",
+          apartment: defaultAddr.apartment || "",
+          city: defaultAddr.city || "",
+          state: defaultAddr.state || "",
+          zipCode: defaultAddr.zipCode || "",
+        }));
+      }
+    }
+  }, [savedAddresses]);
+
   const [paymentForm, setPaymentForm] = useState({});
 
   const [formErrors, setFormErrors] = useState({});
@@ -63,7 +123,15 @@ const CheckoutPage = () => {
 
   // Calculate pricing details
   const discountAmount = appliedPromo ? appliedPromo.discountAmount : 0;
-  const shippingCost = shippingForm.method === "express" ? 500 : 0;
+  const meetsThreshold = cartSubtotal >= checkoutSettings.freeShippingThreshold;
+  let shippingCost = shippingForm.method === "express"
+    ? checkoutSettings.expressShippingFee
+    : (meetsThreshold ? 0 : checkoutSettings.standardShippingFee);
+
+  if (paymentMethod === "cod") {
+    shippingCost += checkoutSettings.codFee;
+  }
+
   const grandTotal = cartSubtotal - discountAmount + shippingCost;
 
   // Handle promo code application
@@ -97,7 +165,10 @@ const CheckoutPage = () => {
     setFormErrors({ ...formErrors, [e.target.name]: "" });
   };
 
-
+  const handleBillingChange = (e) => {
+    setBillingForm({ ...billingForm, [e.target.name]: e.target.value });
+    setFormErrors({ ...formErrors, [e.target.name]: "" });
+  };
 
   const handleShippingSubmit = (e) => {
     e.preventDefault();
@@ -109,6 +180,15 @@ const CheckoutPage = () => {
     if (!shippingForm.city.trim()) errors.city = "City is required.";
     if (!shippingForm.state.trim()) errors.state = "State is required.";
     if (!shippingForm.zipCode.trim()) errors.zipCode = "ZIP/Postal code is required.";
+
+    if (!billingSameAsShipping) {
+      if (!billingForm.name.trim()) errors.billingName = "Billing name is required.";
+      if (!billingForm.phone.trim()) errors.billingPhone = "Billing phone is required.";
+      if (!billingForm.street.trim()) errors.billingStreet = "Billing street address is required.";
+      if (!billingForm.city.trim()) errors.billingCity = "Billing city is required.";
+      if (!billingForm.state.trim()) errors.billingState = "Billing state is required.";
+      if (!billingForm.zipCode.trim()) errors.billingZipCode = "Billing ZIP code is required.";
+    }
 
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
@@ -139,6 +219,30 @@ const CheckoutPage = () => {
         return `${p ? p.name : "Curated Product"} (x${item.quantity})`;
       })
       .join(", ");
+
+    const resolvedBillingDetails = billingSameAsShipping
+      ? {
+          name: shippingForm.name,
+          address: {
+            street: shippingForm.street,
+            apartment: shippingForm.apartment,
+            city: shippingForm.city,
+            state: shippingForm.state,
+            zipCode: shippingForm.zipCode,
+          },
+          phone: shippingForm.phone,
+        }
+      : {
+          name: billingForm.name,
+          address: {
+            street: billingForm.street,
+            apartment: billingForm.apartment,
+            city: billingForm.city,
+            state: billingForm.state,
+            zipCode: billingForm.zipCode,
+          },
+          phone: billingForm.phone,
+        };
 
     const newOrder = {
       id: orderId,
@@ -174,8 +278,9 @@ const CheckoutPage = () => {
         phone: shippingForm.phone,
         method: shippingForm.method
       },
+      billingDetails: resolvedBillingDetails,
       paymentDetails: {
-        method: "razorpay"
+        method: paymentMethod === "cod" ? "COD" : "razorpay"
       },
       pricingBreakdown: {
         subtotal: cartSubtotal,
@@ -185,6 +290,50 @@ const CheckoutPage = () => {
         promoCode: appliedPromo ? appliedPromo.code : null
       }
     };
+
+    // If Cash on Delivery, submit directly to backend and skip Razorpay
+    if (paymentMethod === "cod") {
+      setProcessingStatus("Placing Cash on Delivery order...");
+      try {
+        await API.post("/orders", {
+          orderId: newOrder.id,
+          date: newOrder.date,
+          total: newOrder.total,
+          items: newOrder.items,
+          products: newOrder.products,
+          shippingDetails: newOrder.shippingDetails,
+          billingDetails: resolvedBillingDetails,
+          paymentDetails: {
+            method: "COD",
+            paymentStatus: "Pending",
+            transactionToken: `COD-${Date.now()}`
+          },
+          pricingBreakdown: newOrder.pricingBreakdown
+        });
+
+        // Save default address if not set
+        const hasDefaultAddress = user.address && user.address.street;
+        await updateProfile({
+          address: hasDefaultAddress ? user.address : {
+            street: shippingForm.street,
+            apartment: shippingForm.apartment,
+            city: shippingForm.city,
+            state: shippingForm.state,
+            zipCode: shippingForm.zipCode,
+          },
+          phone: user.phone || shippingForm.phone,
+        });
+
+        clearCart();
+        setIsProcessing(false);
+        navigate(`/order-success/${newOrder.id}`, { replace: true });
+      } catch (err) {
+        console.error("Failed to commit COD order:", err);
+        setError(err.response?.data?.message || "Failed to create order record. Please try again.");
+        setIsProcessing(false);
+      }
+      return;
+    }
 
     try {
       // 1. Ask backend to register a secure Razorpay order transaction
@@ -216,6 +365,7 @@ const CheckoutPage = () => {
               items: newOrder.items,
               products: newOrder.products,
               shippingDetails: newOrder.shippingDetails,
+              billingDetails: resolvedBillingDetails,
               paymentDetails: {
                 method: "razorpay",
                 razorpayPaymentId: response.razorpay_payment_id,
@@ -224,6 +374,7 @@ const CheckoutPage = () => {
               },
               pricingBreakdown: serverPricing
             });
+
 
             // Also save current address & phone as defaults if not already set
             const hasDefaultAddress = user.address && user.address.street;
@@ -238,23 +389,7 @@ const CheckoutPage = () => {
               phone: user.phone || shippingForm.phone,
             });
 
-            // Save to profile address book if checkbox was checked
-            if (saveAddressToProfile) {
-              try {
-                await API.post("/auth/profile/addresses", {
-                  name: shippingForm.name,
-                  street: shippingForm.street,
-                  apartment: shippingForm.apartment,
-                  city: shippingForm.city,
-                  state: shippingForm.state,
-                  zipCode: shippingForm.zipCode,
-                  phone: shippingForm.phone,
-                  isDefault: false
-                });
-              } catch (addrErr) {
-                console.error("Failed to save address to user profile:", addrErr);
-              }
-            }
+
 
             clearCart();
             setIsProcessing(false);
@@ -389,17 +524,21 @@ const CheckoutPage = () => {
                               type="button"
                               onClick={() => {
                                 setShippingForm((prev) => ({
-                                  ...prev,
-                                  name: addr.name || prev.name,
-                                  phone: addr.phone || prev.phone,
-                                  street: addr.street || "",
-                                  apartment: addr.apartment || "",
-                                  city: addr.city || "",
-                                  state: addr.state || "",
-                                  zipCode: addr.zipCode || "",
-                                }));
+                                   ...prev,
+                                   name: prev.name && prev.name !== "Home" && prev.name !== "Office" && !prev.name.startsWith("Shipping:") ? prev.name : (user.name || ""),
+                                   phone: addr.phone || prev.phone,
+                                   street: addr.street || "",
+                                   apartment: addr.apartment || "",
+                                   city: addr.city || "",
+                                   state: addr.state || "",
+                                   zipCode: addr.zipCode || "",
+                                 }));
                               }}
-                              className="border border-border/80 bg-surface/50 hover:border-bronze hover:bg-surface/80 p-3.5 rounded-[4px] cursor-pointer transition-all duration-200 text-left space-y-1 font-body text-xs relative group"
+                              className={`border p-3.5 rounded-[8px] cursor-pointer transition-all duration-300 text-left space-y-1 font-body text-xs relative group ${
+                                shippingForm.street === addr.street && shippingForm.city === addr.city && shippingForm.zipCode === addr.zipCode
+                                  ? "border-bronze bg-[#FDFBF7] ring-1 ring-bronze/10 shadow-xs" 
+                                  : "border-border/80 bg-surface/30 hover:border-bronze hover:bg-surface/50"
+                              }`}
                             >
                               <div className="flex justify-between items-center">
                                 <span className="font-semibold text-ink">{addr.name}</span>
@@ -565,7 +704,9 @@ const CheckoutPage = () => {
                               <span className="font-body font-light text-[0.65rem] text-muted block">Delivered in 5-8 business days</span>
                             </div>
                           </div>
-                          <span className="font-body font-medium text-xs text-bronze uppercase tracking-wider">Free</span>
+                          <span className="font-body font-medium text-xs text-bronze uppercase tracking-wider">
+                            {checkoutSettings.standardShippingFee === 0 || cartSubtotal >= checkoutSettings.freeShippingThreshold ? "Free" : `₹${checkoutSettings.standardShippingFee}`}
+                          </span>
                         </label>
 
                         <label className={`border p-4 flex items-center justify-between cursor-pointer rounded-[2px] transition-all duration-300 ${
@@ -585,23 +726,144 @@ const CheckoutPage = () => {
                               <span className="font-body font-light text-[0.65rem] text-muted block">Delivered in 2-4 business days</span>
                             </div>
                           </div>
-                          <span className="font-body font-medium text-xs text-ink">₹500</span>
+                          <span className="font-body font-medium text-xs text-ink">₹{checkoutSettings.expressShippingFee}</span>
                         </label>
                       </div>
                     </div>
 
-                    {/* Checkbox to save address to profile book */}
-                    <div className="pt-2 flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        id="saveAddressToProfile"
-                        checked={saveAddressToProfile}
-                        onChange={(e) => setSaveAddressToProfile(e.target.checked)}
-                        className="accent-bronze cursor-pointer"
-                      />
-                      <label htmlFor="saveAddressToProfile" className="font-body text-xs text-muted cursor-pointer select-none">
-                        Save this address to my profile address book
+
+
+                    {/* Billing Address Selection */}
+                    <div className="pt-6 border-t border-border/60 space-y-4">
+                      <label className="flex items-center gap-3 cursor-pointer group">
+                        <input
+                          type="checkbox"
+                          checked={billingSameAsShipping}
+                          onChange={(e) => setBillingSameAsShipping(e.target.checked)}
+                          className="w-4.5 h-4.5 accent-bronze cursor-pointer rounded-[2px]"
+                        />
+                        <span className="font-body text-xs text-ink group-hover:text-bronze transition-colors duration-200 select-none">
+                          My billing address is the same as my shipping address
+                        </span>
                       </label>
+
+                      {!billingSameAsShipping && (
+                        <div className="space-y-6 pt-4 border-t border-border/30 animate-fadeIn">
+                          <h4 className="font-display font-light text-base text-ink m-0 pb-1.5 border-b border-border/40">
+                            Billing Address Details
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="space-y-1">
+                              <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                                Full Name
+                              </label>
+                              <input
+                                type="text"
+                                name="name"
+                                value={billingForm.name}
+                                onChange={handleBillingChange}
+                                className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10"
+                              />
+                              {formErrors.billingName && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.billingName}</p>}
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                                Phone Number
+                              </label>
+                              <input
+                                type="tel"
+                                name="phone"
+                                value={billingForm.phone}
+                                onChange={handleBillingChange}
+                                placeholder="+91 XXXXX XXXXX"
+                                className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                              />
+                              {formErrors.billingPhone && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.billingPhone}</p>}
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="space-y-1">
+                              <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                                Street Address
+                              </label>
+                              <input
+                                type="text"
+                                name="street"
+                                value={billingForm.street}
+                                onChange={handleBillingChange}
+                                placeholder="Flat, House no., Building, Company"
+                                className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                              />
+                              {formErrors.billingStreet && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.billingStreet}</p>}
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                                  Apartment, suite, unit (Optional)
+                                </label>
+                                <input
+                                  type="text"
+                                  name="apartment"
+                                  value={billingForm.apartment}
+                                  onChange={handleBillingChange}
+                                  placeholder="e.g. Apt 4B, Floor 2"
+                                  className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                                  Town / City
+                                </label>
+                                <input
+                                  type="text"
+                                  name="city"
+                                  value={billingForm.city}
+                                  onChange={handleBillingChange}
+                                  placeholder="e.g. Mumbai"
+                                  className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                                />
+                                {formErrors.billingCity && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.billingCity}</p>}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              <div className="space-y-1">
+                                <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                                  State
+                                </label>
+                                <input
+                                  type="text"
+                                  name="state"
+                                  value={billingForm.state}
+                                  onChange={handleBillingChange}
+                                  placeholder="e.g. Maharashtra"
+                                  className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                                />
+                                {formErrors.billingState && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.billingState}</p>}
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                                  ZIP / Postal Code
+                                </label>
+                                <input
+                                  type="text"
+                                  name="zipCode"
+                                  value={billingForm.zipCode}
+                                  onChange={handleBillingChange}
+                                  placeholder="e.g. 400001"
+                                  className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/30"
+                                />
+                                {formErrors.billingZipCode && <p className="text-[0.68rem] font-body text-red-700 m-0">{formErrors.billingZipCode}</p>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <button
@@ -629,23 +891,51 @@ const CheckoutPage = () => {
 
                 {activeStep === 2 && (
                   <form onSubmit={handlePaymentSubmit} className="p-6 md:p-8 space-y-6 animate-fadeIn">
-                    <div className="bg-[#FDFBF7] border border-border/80 p-5 rounded-[2px] space-y-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-bronze/10 flex items-center justify-center text-bronze">
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                            <path d="M7 11V7a5 5 0 0110 0v4" />
-                          </svg>
-                        </div>
-                        <div>
-                          <span className="font-body text-xs font-semibold text-ink block">Secure Gateway Checkout</span>
-                          <span className="font-body text-[0.7rem] text-muted block mt-0.5">Transactions are encrypted and processed by Razorpay.</span>
-                        </div>
-                      </div>
+                    <div className="space-y-4">
+                      <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                        Select Payment Method
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Option 1: Razorpay */}
+                        <label className={`border p-4.5 flex items-start gap-3.5 cursor-pointer rounded-[2px] transition-all duration-300 ${
+                          paymentMethod === "razorpay" ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/40"
+                        }`}>
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value="razorpay"
+                            checked={paymentMethod === "razorpay"}
+                            onChange={(e) => setPaymentMethod(e.target.value)}
+                            className="accent-bronze mt-0.5"
+                          />
+                          <div className="text-left space-y-1">
+                            <span className="font-body font-semibold text-xs text-ink block">Razorpay Online Payment</span>
+                            <span className="font-body font-light text-[0.68rem] text-muted block leading-relaxed">
+                              Pay securely using Cards, UPI, Netbanking, or digital wallets.
+                            </span>
+                          </div>
+                        </label>
 
-                      <p className="font-body font-light text-[0.75rem] text-muted leading-relaxed m-0">
-                        Supports Indian Credit & Debit Cards, Unified Payments Interface (UPI), Netbanking, and popular digital wallets.
-                      </p>
+                        {/* Option 2: Cash on Delivery (COD) */}
+                        <label className={`border p-4.5 flex items-start gap-3.5 cursor-pointer rounded-[2px] transition-all duration-300 ${
+                          paymentMethod === "cod" ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/40"
+                        }`}>
+                          <input
+                            type="radio"
+                            name="paymentMethod"
+                            value="cod"
+                            checked={paymentMethod === "cod"}
+                            onChange={(e) => setPaymentMethod(e.target.value)}
+                            className="accent-bronze mt-0.5"
+                          />
+                          <div className="text-left space-y-1">
+                            <span className="font-body font-semibold text-xs text-ink block">Cash on Delivery (COD)</span>
+                            <span className="font-body font-light text-[0.68rem] text-muted block leading-relaxed">
+                              Pay in cash upon physical package delivery.
+                            </span>
+                          </div>
+                        </label>
+                      </div>
                     </div>
 
                     <div className="flex gap-4 items-center">

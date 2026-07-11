@@ -81,36 +81,62 @@ const OrderSuccessPage = () => {
         </div>
 
         {/* Details Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {/* Shipping Summary */}
+          <div className="bg-surface border border-border p-6 rounded-[2px] flex flex-col justify-between">
+            <div>
+              <h3 className="font-body font-normal text-[0.62rem] tracking-[0.18em] uppercase text-muted mb-4 border-b border-border pb-2">
+                Shipping Summary
+              </h3>
+              <div className="font-body text-xs text-ink space-y-2">
+                <p className="font-medium">{order.shippingDetails.name}</p>
+                <p className="font-light text-muted leading-relaxed whitespace-pre-line">
+                  {typeof order.shippingDetails.address === "object"
+                    ? `${order.shippingDetails.address.street}${order.shippingDetails.address.apartment ? `, ${order.shippingDetails.address.apartment}` : ""}\n${order.shippingDetails.address.city}, ${order.shippingDetails.address.state} ${order.shippingDetails.address.zipCode}`
+                    : order.shippingDetails.address}
+                </p>
+                <p className="font-light">Phone: {order.shippingDetails.phone}</p>
+              </div>
+            </div>
+            <p className="font-body font-light text-[0.68rem] text-bronze capitalize tracking-wide mt-4 pt-2 border-t border-border/40">Delivery: {order.shippingDetails.method} Shipping</p>
+          </div>
+
+          {/* Billing Summary */}
           <div className="bg-surface border border-border p-6 rounded-[2px]">
             <h3 className="font-body font-normal text-[0.62rem] tracking-[0.18em] uppercase text-muted mb-4 border-b border-border pb-2">
-              Shipping Summary
+              Billing Summary
             </h3>
-            <div className="font-body text-xs text-ink space-y-2">
-              <p className="font-medium">{order.shippingDetails.name}</p>
-              <p className="font-light text-muted leading-relaxed whitespace-pre-line">
-                {typeof order.shippingDetails.address === "object"
-                  ? `${order.shippingDetails.address.street}${order.shippingDetails.address.apartment ? `, ${order.shippingDetails.address.apartment}` : ""}\n${order.shippingDetails.address.city}, ${order.shippingDetails.address.state} ${order.shippingDetails.address.zipCode}`
-                  : order.shippingDetails.address}
-              </p>
-              <p className="font-light">Phone: {order.shippingDetails.phone}</p>
-              <p className="font-light capitalize mt-2">Delivery: {order.shippingDetails.method} Shipping</p>
-            </div>
+            {order.billingDetails ? (
+              <div className="font-body text-xs text-ink space-y-2">
+                <p className="font-medium">{order.billingDetails.name}</p>
+                <p className="font-light text-muted leading-relaxed whitespace-pre-line">
+                  {typeof order.billingDetails.address === "object"
+                    ? `${order.billingDetails.address.street}${order.billingDetails.address.apartment ? `, ${order.billingDetails.address.apartment}` : ""}\n${order.billingDetails.address.city}, ${order.billingDetails.address.state} ${order.billingDetails.address.zipCode}`
+                    : order.billingDetails.address}
+                </p>
+                <p className="font-light">Phone: {order.billingDetails.phone}</p>
+              </div>
+            ) : (
+              <div className="font-body text-xs text-muted italic">
+                Same as shipping address
+              </div>
+            )}
           </div>
 
           {/* Payment Summary */}
-          <div className="bg-surface border border-border p-6 rounded-[2px]">
-            <h3 className="font-body font-normal text-[0.62rem] tracking-[0.18em] uppercase text-muted mb-4 border-b border-border pb-2">
-              Payment Summary
-            </h3>
-            <div className="font-body text-xs text-ink space-y-2">
-              <p className="font-light">Method: {order.paymentDetails?.paymentMethod || (order.paymentDetails?.method === "razorpay" ? "Razorpay Secure Gateway" : "Online Payment")}</p>
-              {(order.paymentDetails?.transactionToken || order.paymentDetails?.razorpayPaymentId) && (
-                <p className="font-light font-mono text-[0.7rem]">Transaction ID: {order.paymentDetails.transactionToken || order.paymentDetails.razorpayPaymentId}</p>
-              )}
-              <p className="font-light">Purchased on: {order.date}</p>
+          <div className="bg-surface border border-border p-6 rounded-[2px] flex flex-col justify-between">
+            <div>
+              <h3 className="font-body font-normal text-[0.62rem] tracking-[0.18em] uppercase text-muted mb-4 border-b border-border pb-2">
+                Payment Summary
+              </h3>
+              <div className="font-body text-xs text-ink space-y-2">
+                <p className="font-light">Method: <strong className="font-medium text-ink">{order.paymentDetails?.paymentMethod || "Online Payment"}</strong></p>
+                {(order.paymentDetails?.transactionToken || order.paymentDetails?.razorpayPaymentId) && (
+                  <p className="font-light font-mono text-[0.65rem] text-muted break-all">Transaction ID: {order.paymentDetails.transactionToken || order.paymentDetails.razorpayPaymentId}</p>
+                )}
+              </div>
             </div>
+            <p className="font-body font-light text-[0.68rem] text-muted mt-4 pt-2 border-t border-border/40">Purchased on: {order.date}</p>
           </div>
         </div>
 

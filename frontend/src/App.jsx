@@ -22,9 +22,11 @@ import ResetPasswordPage from './pages/ResetPassword/ResetPasswordPage'
 import ProfilePage from './pages/Profile/ProfilePage'
 import CheckoutPage from './pages/Checkout/CheckoutPage'
 import OrderSuccessPage from './pages/OrderSuccess/OrderSuccessPage'
+import OrderDetailPage from './pages/Order/OrderDetailPage'
 import CartDrawer from './components/cart/CartDrawer'
 import AdminPage from './pages/Admin/AdminPage'
 import ProtectedRoute from './components/common/ProtectedRoute'
+import GlobalAIAssistant from './components/shop/GlobalAIAssistant'
 
 function App() {
   return (
@@ -46,6 +48,7 @@ function App() {
           <div className="flex flex-col min-h-screen">
             <Navbar />
             <CartDrawer />
+            <GlobalAIAssistant />
             <main className="flex-grow">
               <Routes>
                 <Route path="/" element={<Home />} />
@@ -85,6 +88,14 @@ function App() {
                   element={
                     <ProtectedRoute>
                       <OrderSuccessPage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/order/:orderId"
+                  element={
+                    <ProtectedRoute>
+                      <OrderDetailPage />
                     </ProtectedRoute>
                   }
                 />

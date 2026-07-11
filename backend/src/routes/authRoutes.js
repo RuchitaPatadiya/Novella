@@ -10,6 +10,7 @@ import {
   getUserAddresses,
   addUserAddress,
   deleteUserAddress,
+  updateUserAddress,
 } from "../controllers/authControllers.js";
 import { protect } from "../middleware/authMiddleware.js";
 import { googleLogin } from "../controllers/oauthControllers.js";
@@ -38,6 +39,7 @@ router.route("/profile/addresses")
   .post(protect, addUserAddress);
 
 router.route("/profile/addresses/:addressId")
+  .put(protect, updateUserAddress)
   .delete(protect, deleteUserAddress);
 
 export default router;

@@ -18,6 +18,24 @@ export const generateToken = (res, userId) => {
   });
 };
 
+// Helper: Auto-migrate legacy flat address to the address array
+export const migrateLegacyAddress = async (user) => {
+  if (user && (!user.addresses || user.addresses.length === 0) && user.address && user.address.street) {
+    user.addresses.push({
+      name: "Home",
+      street: user.address.street,
+      apartment: user.address.apartment || "",
+      city: user.address.city,
+      state: user.address.state,
+      zipCode: user.address.zipCode,
+      phone: user.phone || "",
+      isDefault: true
+    });
+    await user.save();
+  }
+  return user.addresses || [];
+};
+
 // @desc    Register a new user
 // @route   POST /api/auth/register
 // @access  Public
@@ -94,12 +112,16 @@ export const loginUser = async (req, res) => {
       // 3. Generate token & set cookie
       generateToken(res, user._id);
 
+      // Auto-migrate legacy address if empty
+      const addressesList = await migrateLegacyAddress(user);
+
       res.status(200).json({
         id: user._id,
         name: user.name,
         email: user.email,
         phone: user.phone,
         address: user.address,
+        addresses: addressesList,
         orders: user.orders,
         isAdmin: user.isAdmin,
         createdAt: user.createdAt.toLocaleDateString("en-US", {
@@ -135,12 +157,16 @@ export const logoutUser = (req, res) => {
 export const getUserProfile = async (req, res) => {
   // req.user will be pre-loaded by our authMiddleware in the next step
   if (req.user) {
+    // Auto-migrate legacy address if empty
+    const addressesList = await migrateLegacyAddress(req.user);
+
     res.status(200).json({
       id: req.user._id,
       name: req.user.name,
       email: req.user.email,
       phone: req.user.phone,
       address: req.user.address,
+      addresses: addressesList,
       orders: req.user.orders,
       isAdmin: req.user.isAdmin,
       createdAt: req.user.createdAt.toLocaleDateString("en-US", {
@@ -176,12 +202,16 @@ export const updateUserProfile = async (req, res) => {
 
       const updatedUser = await user.save();
 
+      // Auto-migrate legacy address if empty
+      const addressesList = await migrateLegacyAddress(updatedUser);
+
       res.status(200).json({
         id: updatedUser._id,
         name: updatedUser.name,
         email: updatedUser.email,
         phone: updatedUser.phone,
         address: updatedUser.address,
+        addresses: addressesList,
         orders: updatedUser.orders,
         isAdmin: updatedUser.isAdmin,
         createdAt: updatedUser.createdAt.toLocaleDateString("en-US", {
@@ -307,7 +337,8 @@ export const getUserAddresses = async (req, res) => {
     if (!user) {
       return res.status(404).json({ message: "User not found." });
     }
-    res.status(200).json(user.addresses || []);
+    const addressesList = await migrateLegacyAddress(user);
+    res.status(200).json(addressesList);
   } catch (error) {
     res.status(500).json({ message: "Failed to fetch addresses: " + error.message });
   }
@@ -371,5 +402,48 @@ export const deleteUserAddress = async (req, res) => {
     res.status(200).json(user.addresses);
   } catch (error) {
     res.status(500).json({ message: "Failed to delete address: " + error.message });
+  }
+};
+
+// @desc    Update a saved address
+// @route   PUT /api/auth/profile/addresses/:addressId
+// @access  Protected
+export const updateUserAddress = async (req, res) => {
+  const { name, street, apartment, city, state, zipCode, phone, isDefault } = req.body;
+
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found." });
+    }
+
+    const address = user.addresses.id(req.params.addressId);
+    if (!address) {
+      return res.status(404).json({ message: "Address not found." });
+    }
+
+    // Update fields
+    address.name = name || address.name;
+    address.street = street || address.street;
+    address.apartment = apartment !== undefined ? apartment : address.apartment;
+    address.city = city || address.city;
+    address.state = state || address.state;
+    address.zipCode = zipCode || address.zipCode;
+    address.phone = phone || address.phone;
+    address.isDefault = isDefault !== undefined ? !!isDefault : address.isDefault;
+
+    // If marked as default, clear any other defaults
+    if (isDefault) {
+      user.addresses.forEach(addr => {
+        if (addr._id.toString() !== req.params.addressId) {
+          addr.isDefault = false;
+        }
+      });
+    }
+
+    await user.save();
+    res.status(200).json(user.addresses);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to update address: " + error.message });
   }
 };

@@ -87,6 +87,12 @@ const AdminPage = () => {
   const [descTab, setDescTab] = useState("write"); // write | preview
   const [careTab, setCareTab] = useState("write"); // write | preview
 
+  // Catalog filter states
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [catalogCategory, setCatalogCategory] = useState("All");
+  const [catalogStock, setCatalogStock] = useState("All"); // All | in-stock | low-stock | out-of-stock
+  const [catalogSort, setCatalogSort] = useState("name-asc"); // name-asc | name-desc | price-asc | price-desc | stock-asc | stock-desc
+
   // Fetch orders from database
   const fetchOrders = async () => {
     try {
@@ -158,6 +164,76 @@ const AdminPage = () => {
     }
   };
 
+  // CMS state management
+  const [cmsSubTab, setCmsSubTab] = useState("hero");
+  const [cmsHero, setCmsHero] = useState({
+    eyebrow: "",
+    headline: "",
+    subtext: "",
+    ctaText: "",
+    ctaLink: "",
+    image: ""
+  });
+  const [cmsPromo, setCmsPromo] = useState({
+    eyebrow: "",
+    title: "",
+    code: "",
+    subtext: "",
+    image: "",
+    linkText: "",
+    linkPath: ""
+  });
+  const [cmsFaqs, setCmsFaqs] = useState([]);
+  const [cmsTeam, setCmsTeam] = useState([]);
+  const [cmsSpaces, setCmsSpaces] = useState([]);
+  const [cmsPerks, setCmsPerks] = useState([]);
+  const [cmsCheckout, setCmsCheckout] = useState({
+    standardShippingFee: 0,
+    expressShippingFee: 500,
+    freeShippingThreshold: 25000,
+    codFee: 50,
+    taxRate: 18
+  });
+
+  const [cmsLoading, setCmsLoading] = useState(false);
+  const [cmsSuccess, setCmsSuccess] = useState("");
+  const [cmsError, setCmsError] = useState("");
+
+  const fetchCmsSettings = async () => {
+    try {
+      setCmsLoading(true);
+      const res = await API.get("/cms");
+      const data = res.data;
+      if (data) {
+        if (data.home_hero) setCmsHero(data.home_hero);
+        if (data.home_editorial_promo) setCmsPromo(data.home_editorial_promo);
+        if (data.faqs_list) setCmsFaqs(data.faqs_list);
+        if (data.team_members) setCmsTeam(data.team_members);
+        if (data.home_spaces) setCmsSpaces(data.home_spaces);
+        if (data.brand_perks) setCmsPerks(data.brand_perks);
+        if (data.checkout_settings) setCmsCheckout(data.checkout_settings);
+      }
+    } catch (err) {
+      console.error("Failed to load CMS settings:", err);
+    } finally {
+      setCmsLoading(false);
+    }
+  };
+
+  const handleSaveCmsKey = async (key, value) => {
+    setCmsError("");
+    setCmsSuccess("");
+    try {
+      await API.put(`/cms/${key}`, { value });
+      setCmsSuccess(`CMS section "${key}" saved successfully!`);
+      // Reload settings
+      fetchCmsSettings();
+    } catch (err) {
+      console.error("Failed to save CMS key:", err);
+      setCmsError(err.response?.data?.message || "Failed to save CMS configuration.");
+    }
+  };
+
   useEffect(() => {
     if (!loading) {
       if (!user) {
@@ -170,6 +246,7 @@ const AdminPage = () => {
         fetchPromos();
         fetchMessages();
         fetchAnalytics();
+        fetchCmsSettings();
       }
     }
   }, [user, loading, navigate]);
@@ -285,6 +362,32 @@ const AdminPage = () => {
       );
     } catch (err) {
       alert(err.response?.data?.message || "Failed to update order status.");
+    }
+  };
+
+  // Handle admin processing refund for cancelled or returned orders
+  const handleRefundOrder = async (orderId) => {
+    if (window.confirm(`Are you sure you want to issue a refund for order ${orderId}? This will mark the order payment details as Refunded.`)) {
+      try {
+        const res = await API.put(`/orders/${orderId}/refund`);
+        alert(`Refund processed successfully. Transaction reference: ${res.data.paymentDetails?.transactionToken || "Success"}`);
+        setOrders((prev) =>
+          prev.map((order) =>
+            order.id === orderId
+              ? {
+                  ...order,
+                  paymentDetails: {
+                    ...order.paymentDetails,
+                    paymentStatus: "Refunded",
+                    transactionToken: res.data.paymentDetails?.transactionToken
+                  }
+                }
+              : order
+          )
+        );
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to process order refund.");
+      }
     }
   };
 
@@ -640,6 +743,20 @@ const AdminPage = () => {
               </svg>
               Messages ({messages.filter(m => m.status === "New").length > 0 ? `${messages.length} · ${messages.filter(m => m.status === "New").length} new` : messages.length})
             </button>
+
+            <button
+              onClick={() => setActivePanel("cms")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "cms"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
+              }`}
+            >
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              </svg>
+              Atelier CMS Config
+            </button>
           </nav>
         </div>
 
@@ -650,10 +767,11 @@ const AdminPage = () => {
             to="/"
             className="w-full text-center block font-body text-[0.62rem] tracking-[0.2em] uppercase text-bronze hover:text-ink no-underline py-2 border border-bronze/40 hover:border-ink transition-colors duration-200"
           >
-            Return to Store
+            Visit Live Storefront
           </Link>
           <button
-            onClick={() => { logout(); navigate("/"); }}
+            type="button"
+            onClick={logout}
             className="w-full bg-surface hover:bg-border/40 border border-border text-ink py-2 text-[0.62rem] tracking-[0.2em] uppercase cursor-pointer transition-colors duration-200"
           >
             Sign Out
@@ -671,6 +789,7 @@ const AdminPage = () => {
             {activePanel === "reviews" && "Reviews Moderation"}
             {activePanel === "promotions" && "Promotional Campaigns"}
             {activePanel === "messages" && "Contact Messages"}
+            {activePanel === "cms" && "Atelier Content Configurator (CMS)"}
           </h2>
           <span className="font-body text-[0.65rem] tracking-wider text-muted uppercase">
             Logged in as Admin
@@ -1035,13 +1154,30 @@ const AdminPage = () => {
                                     <option value="Returned">Returned</option>
                                   </select>
                                 </td>
-                                <td className="py-4 text-right">
+                                <td className="py-4 text-right space-x-3">
                                   <button
                                     onClick={() => setSelectedOrder(order)}
                                     className="font-body text-[0.62rem] tracking-widest uppercase text-ink hover:text-bronze bg-transparent border-0 cursor-pointer transition-colors duration-250 py-1"
                                   >
-                                    Invoice Details
+                                    Invoice
                                   </button>
+                                  {(order.status === "Cancelled" || order.status === "Returned") && (
+                                    <>
+                                      <span className="text-border/50 text-[10px] select-none">|</span>
+                                      {order.paymentDetails?.paymentStatus === "Refunded" ? (
+                                        <span className="font-body text-[0.58rem] tracking-wider uppercase text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 border border-emerald-250 rounded-[2px] select-none">
+                                          ✓ Refunded
+                                        </span>
+                                      ) : (
+                                        <button
+                                          onClick={() => handleRefundOrder(order.id)}
+                                          className="font-body text-[0.62rem] tracking-widest uppercase text-red-600 hover:text-red-700 bg-transparent border-0 cursor-pointer transition-colors duration-250 py-1 font-semibold"
+                                        >
+                                          Refund
+                                        </button>
+                                      )}
+                                    </>
+                                  )}
                                 </td>
                               </tr>
                             );
@@ -1072,6 +1208,138 @@ const AdminPage = () => {
                 </button>
               </div>
 
+              {/* ── Catalog Filters Bar ── */}
+              <div className="flex flex-wrap items-end gap-3 pt-2 pb-3">
+                {/* Search */}
+                <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+                  <label className="font-body text-[0.58rem] tracking-[0.18em] uppercase text-muted">Search</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted/60 text-[0.75rem]">⌕</span>
+                    <input
+                      type="text"
+                      value={catalogSearch}
+                      onChange={e => setCatalogSearch(e.target.value)}
+                      placeholder="Search by name or ID…"
+                      className="w-full pl-7 pr-3 py-2 border border-border rounded-[2px] font-body text-[0.72rem] text-ink bg-white outline-none focus:border-bronze/60 transition-colors placeholder:text-muted/50"
+                    />
+                  </div>
+                </div>
+
+                {/* Category */}
+                <div className="flex flex-col gap-1 min-w-[140px]">
+                  <label className="font-body text-[0.58rem] tracking-[0.18em] uppercase text-muted">Category</label>
+                  <select
+                    value={catalogCategory}
+                    onChange={e => setCatalogCategory(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-[2px] font-body text-[0.72rem] text-ink bg-white outline-none focus:border-bronze/60 transition-colors cursor-pointer appearance-none"
+                    style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: "28px" }}
+                  >
+                    <option value="All">All Categories</option>
+                    {[...new Set(products.map(p => p.category))].filter(Boolean).sort().map(cat => (
+                      <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, " ")}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Stock Status */}
+                <div className="flex flex-col gap-1 min-w-[130px]">
+                  <label className="font-body text-[0.58rem] tracking-[0.18em] uppercase text-muted">Stock Status</label>
+                  <select
+                    value={catalogStock}
+                    onChange={e => setCatalogStock(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-[2px] font-body text-[0.72rem] text-ink bg-white outline-none focus:border-bronze/60 transition-colors cursor-pointer appearance-none"
+                    style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: "28px" }}
+                  >
+                    <option value="All">All Stock</option>
+                    <option value="in-stock">In Stock (4+)</option>
+                    <option value="low-stock">Low Stock (1–3)</option>
+                    <option value="out-of-stock">Out of Stock</option>
+                  </select>
+                </div>
+
+                {/* Sort */}
+                <div className="flex flex-col gap-1 min-w-[150px]">
+                  <label className="font-body text-[0.58rem] tracking-[0.18em] uppercase text-muted">Sort By</label>
+                  <select
+                    value={catalogSort}
+                    onChange={e => setCatalogSort(e.target.value)}
+                    className="px-3 py-2 border border-border rounded-[2px] font-body text-[0.72rem] text-ink bg-white outline-none focus:border-bronze/60 transition-colors cursor-pointer appearance-none"
+                    style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: "28px" }}
+                  >
+                    <option value="name-asc">Name A → Z</option>
+                    <option value="name-desc">Name Z → A</option>
+                    <option value="price-asc">Price: Low → High</option>
+                    <option value="price-desc">Price: High → Low</option>
+                    <option value="stock-asc">Stock: Low → High</option>
+                    <option value="stock-desc">Stock: High → Low</option>
+                  </select>
+                </div>
+
+                {/* Clear All */}
+                {(catalogSearch || catalogCategory !== "All" || catalogStock !== "All" || catalogSort !== "name-asc") && (
+                  <button
+                    onClick={() => { setCatalogSearch(""); setCatalogCategory("All"); setCatalogStock("All"); setCatalogSort("name-asc"); }}
+                    className="bg-transparent border border-border hover:border-red-300 text-muted hover:text-red-600 font-body text-[0.6rem] tracking-[0.15em] uppercase px-3 py-2 cursor-pointer transition-all duration-200 rounded-[2px] self-end"
+                  >
+                    ✕ Clear Filters
+                  </button>
+                )}
+              </div>
+
+              {/* ── Results count ── */}
+              {(() => {
+                // Compute filtered products
+                let filtered = [...products];
+
+                // 1. Search
+                if (catalogSearch.trim()) {
+                  const q = catalogSearch.trim().toLowerCase();
+                  filtered = filtered.filter(p =>
+                    p.name.toLowerCase().includes(q) ||
+                    (p.id && p.id.toLowerCase().includes(q))
+                  );
+                }
+
+                // 2. Category
+                if (catalogCategory !== "All") {
+                  filtered = filtered.filter(p => p.category === catalogCategory);
+                }
+
+                // 3. Stock status
+                if (catalogStock === "in-stock") {
+                  filtered = filtered.filter(p => (p.stock ?? 10) >= 4);
+                } else if (catalogStock === "low-stock") {
+                  filtered = filtered.filter(p => { const s = p.stock ?? 10; return s >= 1 && s <= 3; });
+                } else if (catalogStock === "out-of-stock") {
+                  filtered = filtered.filter(p => p.stock === 0);
+                }
+
+                // 4. Sort
+                filtered.sort((a, b) => {
+                  switch (catalogSort) {
+                    case "name-asc": return a.name.localeCompare(b.name);
+                    case "name-desc": return b.name.localeCompare(a.name);
+                    case "price-asc": return a.price - b.price;
+                    case "price-desc": return b.price - a.price;
+                    case "stock-asc": return (a.stock ?? 10) - (b.stock ?? 10);
+                    case "stock-desc": return (b.stock ?? 10) - (a.stock ?? 10);
+                    default: return 0;
+                  }
+                });
+
+                const hasFilters = catalogSearch || catalogCategory !== "All" || catalogStock !== "All";
+
+                return (
+                  <>
+                    {hasFilters && (
+                      <p className="font-body text-[0.68rem] text-muted m-0 -mt-1 pb-1">
+                        Showing <span className="font-medium text-ink">{filtered.length}</span> of {products.length} products
+                        {catalogCategory !== "All" && <> in <span className="text-ink font-medium">{catalogCategory.replace(/-/g, " ")}</span></>}
+                        {catalogStock !== "All" && <> · <span className="text-ink font-medium">{catalogStock.replace(/-/g, " ")}</span></>}
+                        {catalogSearch && <> · matching "<span className="text-ink font-medium">{catalogSearch}</span>"</>}
+                      </p>
+                    )}
+
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left font-body text-xs text-ink">
                   <thead>
@@ -1085,7 +1353,22 @@ const AdminPage = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
-                    {products.map((p) => (
+                    {filtered.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="py-12 text-center">
+                          <div className="flex flex-col items-center gap-2">
+                            <span className="text-3xl opacity-30">🔍</span>
+                            <p className="font-body text-[0.75rem] text-muted m-0">No products match your filters</p>
+                            <button
+                              onClick={() => { setCatalogSearch(""); setCatalogCategory("All"); setCatalogStock("All"); setCatalogSort("name-asc"); }}
+                              className="bg-transparent border-0 font-body text-[0.65rem] tracking-wider uppercase text-bronze hover:text-ink cursor-pointer transition-colors"
+                            >
+                              Reset All Filters
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : filtered.map((p) => (
                       <tr key={p.id} className="hover:bg-[#FDFBF7] transition-colors duration-150">
                         <td className="py-4 flex items-center gap-3.5">
                           <img
@@ -1143,6 +1426,9 @@ const AdminPage = () => {
                   </tbody>
                 </table>
               </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
@@ -1676,6 +1962,497 @@ const AdminPage = () => {
 
             </div>
           )}
+
+          {/* ATELIER CMS PANEL */}
+          {activePanel === "cms" && (
+            <div className="space-y-6 animate-fadeIn">
+              {cmsSuccess && (
+                <div className="bg-emerald-50 text-emerald-800 border border-emerald-200/60 p-4 rounded-[2px] font-body text-xs flex justify-between items-center">
+                  <span>{cmsSuccess}</span>
+                  <button type="button" onClick={() => setCmsSuccess("")} className="bg-transparent border-0 cursor-pointer text-emerald-800/60 hover:text-emerald-800 font-bold">×</button>
+                </div>
+              )}
+              {cmsError && (
+                <div className="bg-red-50 text-red-800 border border-red-200/60 p-4 rounded-[2px] font-body text-xs flex justify-between items-center">
+                  <span>{cmsError}</span>
+                  <button type="button" onClick={() => setCmsError("")} className="bg-transparent border-0 cursor-pointer text-red-800/60 hover:text-red-800 font-bold">×</button>
+                </div>
+              )}
+
+              {/* Subtabs selector */}
+              <div className="flex border-b border-border bg-white rounded-[3px] p-1.5 flex-wrap gap-1">
+                {[
+                  { id: "hero", label: "Hero Welcome Banner" },
+                  { id: "promo", label: "Editorial Promotion" },
+                  { id: "faqs", label: "Help FAQs List" },
+                  { id: "team", label: "Meet The Team List" },
+                  { id: "checkout", label: "Checkout & Taxes" }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setCmsSubTab(tab.id)}
+                    className={`px-5 py-2.5 font-body text-[0.62rem] tracking-wider uppercase border-0 cursor-pointer transition-colors duration-250 rounded-[2px] ${
+                      cmsSubTab === tab.id
+                        ? "bg-bronze text-white font-semibold shadow-sm"
+                        : "bg-transparent text-muted hover:text-ink hover:bg-dark/5"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Loader */}
+              {cmsLoading ? (
+                <div className="bg-white border border-border p-12 text-center flex flex-col items-center justify-center rounded-[2px]">
+                  <div className="w-8 h-8 border-2 border-bronze border-t-transparent rounded-full animate-spin mb-4" />
+                  <p className="font-body text-xs text-muted tracking-wider uppercase">Fetching CMS sections...</p>
+                </div>
+              ) : (
+                <div className="bg-white border border-border p-6 md:p-8 rounded-[2px]">
+                  {/* SUBTAB 1: HERO */}
+                  {cmsSubTab === "hero" && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveCmsKey("home_hero", cmsHero);
+                      }}
+                      className="space-y-6"
+                    >
+                      <h3 className="font-display font-light text-lg text-ink m-0 pb-2 border-b border-border/50">Hero Welcome Settings</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Eyebrow Tagline</label>
+                          <input
+                            type="text"
+                            value={cmsHero.eyebrow}
+                            onChange={(e) => setCmsHero({ ...cmsHero, eyebrow: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">CTA Link URL</label>
+                          <input
+                            type="text"
+                            value={cmsHero.ctaLink}
+                            onChange={(e) => setCmsHero({ ...cmsHero, ctaLink: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Headline Title (use "|" to split styling italic vs bold)</label>
+                        <input
+                          type="text"
+                          value={cmsHero.headline}
+                          onChange={(e) => setCmsHero({ ...cmsHero, headline: e.target.value })}
+                          placeholder="Where every room | tells your story."
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Subtext Paragraph</label>
+                        <textarea
+                          rows={3}
+                          value={cmsHero.subtext}
+                          onChange={(e) => setCmsHero({ ...cmsHero, subtext: e.target.value })}
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">CTA Button Label</label>
+                          <input
+                            type="text"
+                            value={cmsHero.ctaText}
+                            onChange={(e) => setCmsHero({ ...cmsHero, ctaText: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Background Image URL</label>
+                          <input
+                            type="text"
+                            value={cmsHero.image}
+                            onChange={(e) => setCmsHero({ ...cmsHero, image: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase px-8 py-3.5 border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                      >
+                        Save Hero Changes
+                      </button>
+                    </form>
+                  )}
+
+                  {/* SUBTAB 2: PROMO */}
+                  {cmsSubTab === "promo" && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveCmsKey("home_editorial_promo", cmsPromo);
+                      }}
+                      className="space-y-6"
+                    >
+                      <h3 className="font-display font-light text-lg text-ink m-0 pb-2 border-b border-border/50">Editorial Promo Settings</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Eyebrow Label</label>
+                          <input
+                            type="text"
+                            value={cmsPromo.eyebrow}
+                            onChange={(e) => setCmsPromo({ ...cmsPromo, eyebrow: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze rounded-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Promo Code</label>
+                          <input
+                            type="text"
+                            value={cmsPromo.code}
+                            onChange={(e) => setCmsPromo({ ...cmsPromo, code: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze rounded-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Promo Headline</label>
+                        <input
+                          type="text"
+                          value={cmsPromo.title}
+                          onChange={(e) => setCmsPromo({ ...cmsPromo, title: e.target.value })}
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze rounded-sm"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Description Subtext</label>
+                        <textarea
+                          rows={3}
+                          value={cmsPromo.subtext}
+                          onChange={(e) => setCmsPromo({ ...cmsPromo, subtext: e.target.value })}
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze rounded-sm"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">CTA Link Text</label>
+                          <input
+                            type="text"
+                            value={cmsPromo.linkText}
+                            onChange={(e) => setCmsPromo({ ...cmsPromo, linkText: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze rounded-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">CTA Destination Path</label>
+                          <input
+                            type="text"
+                            value={cmsPromo.linkPath}
+                            onChange={(e) => setCmsPromo({ ...cmsPromo, linkPath: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze rounded-sm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Promo Banner Image URL</label>
+                          <input
+                            type="text"
+                            value={cmsPromo.image}
+                            onChange={(e) => setCmsPromo({ ...cmsPromo, image: e.target.value })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze rounded-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase px-8 py-3.5 border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                      >
+                        Save Promo Changes
+                      </button>
+                    </form>
+                  )}
+
+                  {/* SUBTAB 3: FAQS */}
+                  {cmsSubTab === "faqs" && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                        <h3 className="font-display font-light text-lg text-ink m-0">Manage Frequently Asked Questions</h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newFaq = { question: "New Question?", answer: "Sample Answer detail text here." };
+                            setCmsFaqs([...cmsFaqs, newFaq]);
+                          }}
+                          className="px-4 py-2 border border-bronze text-bronze hover:bg-bronze hover:text-white bg-transparent font-body text-[0.58rem] tracking-wider uppercase cursor-pointer transition-colors duration-200 rounded-[2px]"
+                        >
+                          + Add FAQ Row
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {cmsFaqs.map((faq, idx) => (
+                          <div key={idx} className="border border-border p-4 bg-[#FDFBF7] space-y-3 relative">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCmsFaqs(cmsFaqs.filter((_, i) => i !== idx));
+                              }}
+                              className="absolute top-3 right-3 text-red-600 hover:text-red-800 font-body text-[0.65rem] tracking-widest uppercase border-0 bg-transparent cursor-pointer"
+                            >
+                              Remove
+                            </button>
+                            <span className="font-display font-light text-xs text-bronze leading-none">FAQ #{idx + 1}</span>
+                            
+                            <div className="space-y-1">
+                              <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Question</label>
+                              <input
+                                type="text"
+                                value={faq.question}
+                                onChange={(e) => {
+                                  const updated = [...cmsFaqs];
+                                  updated[idx].question = e.target.value;
+                                  setCmsFaqs(updated);
+                                }}
+                                className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Answer</label>
+                              <textarea
+                                rows={2}
+                                value={faq.answer}
+                                onChange={(e) => {
+                                  const updated = [...cmsFaqs];
+                                  updated[idx].answer = e.target.value;
+                                  setCmsFaqs(updated);
+                                }}
+                                className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveCmsKey("faqs_list", cmsFaqs)}
+                        className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase px-8 py-3.5 border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                      >
+                        Save All FAQ Changes
+                      </button>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 4: MEET THE TEAM */}
+                  {cmsSubTab === "team" && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                        <h3 className="font-display font-light text-lg text-ink m-0">Manage Team Profiles</h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newMember = { name: "Full Name", role: "Job Title / Role", bio: "Bio quote / details.", image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=500&q=80" };
+                            setCmsTeam([...cmsTeam, newMember]);
+                          }}
+                          className="px-4 py-2 border border-bronze text-bronze hover:bg-bronze hover:text-white bg-transparent font-body text-[0.58rem] tracking-wider uppercase cursor-pointer transition-colors duration-200 rounded-[2px]"
+                        >
+                          + Add Team Member
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {cmsTeam.map((member, idx) => (
+                          <div key={idx} className="border border-border p-4 bg-[#FDFBF7] space-y-4 relative grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCmsTeam(cmsTeam.filter((_, i) => i !== idx));
+                              }}
+                              className="absolute top-3 right-3 text-red-600 hover:text-red-800 font-body text-[0.65rem] tracking-widest uppercase border-0 bg-transparent cursor-pointer"
+                            >
+                              Remove
+                            </button>
+
+                            <div className="md:col-span-3 pb-1 border-b border-border/40">
+                              <span className="font-display font-light text-xs text-bronze leading-none">Member Profile #{idx + 1}</span>
+                            </div>
+
+                            <div className="col-span-1 space-y-2">
+                              <div className="w-24 h-24 border border-border overflow-hidden bg-background rounded-sm flex items-center justify-center p-1">
+                                <img src={member.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80"} alt={member.name} className="w-full h-full object-cover object-top" />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Image URL</label>
+                                <input
+                                  type="text"
+                                  value={member.image || ""}
+                                  onChange={(e) => {
+                                    const updated = [...cmsTeam];
+                                    updated[idx].image = e.target.value;
+                                    setCmsTeam(updated);
+                                  }}
+                                  className="w-full bg-white border border-border px-2 py-1.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div className="md:col-span-2 space-y-3">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                  <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Full Name</label>
+                                  <input
+                                    type="text"
+                                    value={member.name || ""}
+                                    onChange={(e) => {
+                                      const updated = [...cmsTeam];
+                                      updated[idx].name = e.target.value;
+                                      setCmsTeam(updated);
+                                    }}
+                                    className="w-full bg-white border border-border px-2 py-1.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Job Role</label>
+                                  <input
+                                    type="text"
+                                    value={member.role || ""}
+                                    onChange={(e) => {
+                                      const updated = [...cmsTeam];
+                                      updated[idx].role = e.target.value;
+                                      setCmsTeam(updated);
+                                    }}
+                                    className="w-full bg-white border border-border px-2 py-1.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                  />
+                                </div>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Bio Biography Quote</label>
+                                <textarea
+                                  rows={2}
+                                  value={member.bio || member.quote || ""}
+                                  onChange={(e) => {
+                                    const updated = [...cmsTeam];
+                                    if (updated[idx].bio !== undefined) updated[idx].bio = e.target.value;
+                                    else updated[idx].quote = e.target.value;
+                                    setCmsTeam(updated);
+                                  }}
+                                  className="w-full bg-white border border-border px-2 py-1.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveCmsKey("team_members", cmsTeam)}
+                        className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase px-8 py-3.5 border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                      >
+                        Save All Team Profiles
+                      </button>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 5: CHECKOUT & TAXES */}
+                  {cmsSubTab === "checkout" && (
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleSaveCmsKey("checkout_settings", cmsCheckout);
+                      }}
+                      className="space-y-6"
+                    >
+                      <h3 className="font-display font-light text-lg text-ink m-0 pb-2 border-b border-border/50">Checkout Pricing & Shipping Configurations</h3>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Standard Shipping Fee (₹)</label>
+                          <input
+                            type="number"
+                            value={cmsCheckout.standardShippingFee}
+                            onChange={(e) => setCmsCheckout({ ...cmsCheckout, standardShippingFee: Number(e.target.value) })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                            min="0"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Express Shipping Fee (₹)</label>
+                          <input
+                            type="number"
+                            value={cmsCheckout.expressShippingFee}
+                            onChange={(e) => setCmsCheckout({ ...cmsCheckout, expressShippingFee: Number(e.target.value) })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                            min="0"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Free Shipping Subtotal Threshold (₹)</label>
+                          <input
+                            type="number"
+                            value={cmsCheckout.freeShippingThreshold}
+                            onChange={(e) => setCmsCheckout({ ...cmsCheckout, freeShippingThreshold: Number(e.target.value) })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                            min="0"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Cash On Delivery (COD) Handling Fee (₹)</label>
+                          <input
+                            type="number"
+                            value={cmsCheckout.codFee}
+                            onChange={(e) => setCmsCheckout({ ...cmsCheckout, codFee: Number(e.target.value) })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                            min="0"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Tax Rate (GST %)</label>
+                          <input
+                            type="number"
+                            value={cmsCheckout.taxRate}
+                            onChange={(e) => setCmsCheckout({ ...cmsCheckout, taxRate: Number(e.target.value) })}
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
+                            min="0"
+                            max="100"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase px-8 py-3.5 border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                      >
+                        Save Checkout Settings
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
 
@@ -2165,8 +2942,8 @@ const AdminPage = () => {
                 <span>{selectedOrder.pricingBreakdown.shipping > 0 ? `₹${selectedOrder.pricingBreakdown.shipping}` : "₹0 (Free)"}</span>
               </div>
               <div className="flex justify-between text-muted/65 text-[0.68rem] font-light">
-                <span>Estimated Tax (18% GST inc.)</span>
-                <span>₹{Math.round((selectedOrder.pricingBreakdown.subtotal - selectedOrder.pricingBreakdown.discount) * 0.18).toLocaleString("en-IN")}</span>
+                <span>Estimated Tax ({cmsCheckout.taxRate}% GST inc.)</span>
+                <span>₹{Math.round((selectedOrder.pricingBreakdown.subtotal - selectedOrder.pricingBreakdown.discount) * (cmsCheckout.taxRate / 100)).toLocaleString("en-IN")}</span>
               </div>
               <div className="border-t border-border/80 pt-3.5 flex justify-between items-end">
                 <span className="font-display font-medium text-sm text-ink m-0">Settled Amount</span>

@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import API from "../../services/api";
 
-const spaces = [
+const fallbackSpaces = [
   {
     id: "living-room",
     name: "Living Room",
@@ -22,6 +24,22 @@ const spaces = [
 ];
 
 export default function ShopBySpace() {
+  const [spaces, setSpaces] = useState(fallbackSpaces);
+
+  useEffect(() => {
+    const fetchSpaces = async () => {
+      try {
+        const res = await API.get("/cms/home_spaces");
+        if (res.data && Array.isArray(res.data)) {
+          setSpaces(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load CMS spaces settings:", err);
+      }
+    };
+    fetchSpaces();
+  }, []);
+
   return (
     <section className="bg-background py-20 md:py-24 border-t border-border">
       <div className="px-[clamp(1.5rem,5vw,4rem)]">

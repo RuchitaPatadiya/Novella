@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom'
-import SpacesHero from '../../components/space/Spaceshero'
 import ChooseYourSpace from '../../components/space/Chooseyourspace'
 import ShopTheLook from '../../components/space/ShopTheLook'
 import WabiSabiGuide from '../../components/space/WabiSabiGuide'
 import StyledByYou from '../../components/space/StyledByYou'
 import BrandStrip from '../../components/home/BrandStrip'
+import AtelierHero from '../../components/common/AtelierHero'
 
 const SpacePage = () => {
   return (
@@ -19,7 +19,17 @@ const SpacePage = () => {
           <span className="text-ink font-normal">Spaces</span>
         </div>
       </div>
-      <SpacesHero />
+      <AtelierHero 
+        eyebrow="Design Every Corner"
+        title="Your Home, Your Story"
+        subtitle="Shop curated pieces room by room — from social living areas to peaceful bed sanctuaries, every corner of your home deserves wabi-sabi intention."
+        bottomText="↓ Discover Spaces ↓"
+        images={[
+          "https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=400&q=80",
+          "https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=400&q=80",
+          "https://images.unsplash.com/photo-1617806118233-18e1de247200?w=400&q=80"
+        ]}
+      />
       <ChooseYourSpace />
       <ShopTheLook />
       <WabiSabiGuide />

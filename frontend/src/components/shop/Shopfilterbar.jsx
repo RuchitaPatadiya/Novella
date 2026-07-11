@@ -195,8 +195,8 @@ export default function ShopFilterBar({
               <input
                 type="range"
                 min={0}
-                max={80000}
-                step={1000}
+                max={150000}
+                step={2000}
                 value={priceRange[1]}
                 onChange={e => onPriceChange([priceRange[0], Number(e.target.value)])}
                 className="flex-1 accent-bronze"

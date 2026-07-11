@@ -12,9 +12,14 @@ const importData = async () => {
     await Product.deleteMany();
     console.log("Existing products cleared from collection...");
 
-    // 3. Insert our 12 premium products
-    await Product.insertMany(seedProducts);
-    console.log("12 Premium Products Seeded Successfully!");
+    // 3. Insert our 12 premium products (resetting placeholder ratings/counts to 0)
+    const initializedProducts = seedProducts.map((p) => ({
+      ...p,
+      rating: 0,
+      reviewsCount: 0
+    }));
+    await Product.insertMany(initializedProducts);
+    console.log(`${initializedProducts.length} Premium Products Seeded Successfully (Ratings set to 0)!`);
 
     process.exit(0);
   } catch (error) {

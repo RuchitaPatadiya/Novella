@@ -1,11 +1,39 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import heroImage from "../../assets/hero12.jpg";
+import API from "../../services/api";
 
 const HeroSection = () => {
   const [visible, setVisible] = useState(false);
+  const [heroData, setHeroData] = useState({
+    eyebrow: "New Collection 2025",
+    headline: "Where every room | tells your story.",
+    subtext: "Handpicked furniture and décor for spaces that feel unmistakably like home.",
+    ctaText: "Shop Now",
+    ctaLink: "/shop",
+    image: heroImage
+  });
 
   useEffect(() => {
+    const fetchHero = async () => {
+      try {
+        const res = await API.get("/cms/home_hero");
+        if (res.data) {
+          setHeroData({
+            eyebrow: res.data.eyebrow || "New Collection 2025",
+            headline: res.data.headline || "Where every room | tells your story.",
+            subtext: res.data.subtext || "Handpicked furniture and décor for spaces that feel unmistakably like home.",
+            ctaText: res.data.ctaText || "Shop Now",
+            ctaLink: res.data.ctaLink || "/shop",
+            image: res.data.image || heroImage
+          });
+        }
+      } catch (err) {
+        console.error("Failed to load CMS hero banner settings:", err);
+      }
+    };
+    fetchHero();
+
     const t = setTimeout(() => setVisible(true), 120);
     return () => clearTimeout(t);
   }, []);
@@ -22,7 +50,7 @@ const HeroSection = () => {
 
       {/* Image */}
       <img
-        src={heroImage}
+        src={heroData.image}
         alt="Luxury living room by Novella"
         className="absolute inset-0 w-full h-full object-cover object-[center_30%]"
         style={{
@@ -44,7 +72,7 @@ const HeroSection = () => {
         <div className="flex items-center gap-3 mb-7" style={fadeUp("200ms")}>
           <span className="block w-8 h-px bg-gold" />
           <span className="font-body font-normal text-[0.6rem] text-gold tracking-[0.42em] uppercase">
-            New Collection 2025
+            {heroData.eyebrow}
           </span>
         </div>
 
@@ -54,13 +82,13 @@ const HeroSection = () => {
             className="block leading-[1.08] font-display font-light italic text-[clamp(3.2rem,6vw,6.2rem)] text-cream"
             style={fadeUp("370ms")}
           >
-            Where every room
+            {heroData.headline.split("|")[0]?.trim() || "Where every room"}
           </span>
           <span
             className="block leading-[1.08] font-display font-semibold text-[clamp(3.4rem,6.5vw,6.8rem)] text-gold tracking-[-0.01em]"
             style={fadeUp("510ms")}
           >
-            tells your story.
+            {heroData.headline.split("|")[1]?.trim() || "tells your story."}
           </span>
         </h1>
 
@@ -75,18 +103,17 @@ const HeroSection = () => {
 
         {/* Subtext */}
         <p
-          className="m-0 leading-[1.85] max-w-[360px] font-body font-light text-[clamp(0.82rem,1.1vw,0.96rem)] text-cream-muted/65 tracking-[0.04em]"
+          className="m-0 leading-[1.85] max-w-[360px] font-body font-light text-[clamp(0.82rem,1.1vw,0.96rem)] text-cream-muted/65 tracking-[0.04em] whitespace-pre-line"
           style={fadeUp("660ms")}
         >
-          Handpicked furniture and décor for spaces<br />
-          that feel unmistakably like home.
+          {heroData.subtext}
         </p>
 
         {/* CTAs */}
         <div className="flex items-center gap-7 mt-10" style={fadeUp("800ms")}>
-          <Link to="/shop" className="no-underline">
+          <Link to={heroData.ctaLink} className="no-underline">
             <span className="block px-9 py-[13px] font-body font-medium text-[0.65rem] tracking-[0.28em] uppercase bg-gold text-dark transition-colors duration-300 hover:brightness-110">
-              Shop Now
+              {heroData.ctaText}
             </span>
           </Link>
 

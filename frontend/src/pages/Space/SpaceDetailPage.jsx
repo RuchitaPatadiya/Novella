@@ -4,6 +4,7 @@ import { spacesData } from "../../utils/spaceData";
 import { useProducts } from "../../context/ProductContext";
 import BrandStrip from "../../components/home/BrandStrip";
 import ProductCard from "../../components/common/ProductCard";
+import AtelierHero from "../../components/common/AtelierHero";
 
 const SpaceDetailPage = () => {
   const { spaceId } = useParams();
@@ -49,6 +50,10 @@ const SpaceDetailPage = () => {
     (p) => space.productIds.includes(p.id) || (p.spaces && p.spaces.includes(spaceId))
   );
 
+  const galleryImages = curatedProducts.length >= 3 
+    ? curatedProducts.slice(0, 3).map(p => p.images?.[0] || p.image) 
+    : [space.heroImage, space.heroImage, space.heroImage];
+
   const fadeUp = (delay) => ({
     opacity: visible ? 1 : 0,
     transform: visible ? "translateY(0)" : "translateY(24px)",
@@ -74,49 +79,13 @@ const SpaceDetailPage = () => {
       </div>
 
       {/* Hero Section */}
-      <section className="relative w-full h-[60vh] min-h-[400px] overflow-hidden flex items-center">
-        {/* Background Image with Scale Transition */}
-        <img
-          src={space.heroImage}
-          alt={`Curated ${space.name} design`}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{
-            transform: visible ? "scale(1.0)" : "scale(1.04)",
-            transition: "transform 8000ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-            willChange: "transform",
-          }}
-        />
-        
-        {/* Gradients */}
-        <div className="absolute inset-0 bg-gradient-to-t from-dark/90 via-dark/40 to-dark/20" />
-
-        {/* Hero Content */}
-        <div className="relative z-10 w-full px-[clamp(1.5rem,5vw,4rem)] text-left max-w-4xl">
-          {/* Eyebrow */}
-          <div className="flex items-center gap-2.5 mb-4" style={fadeUp("150ms")}>
-            <span className="block w-5 h-px bg-gold" />
-            <span className="font-body font-normal text-[0.58rem] text-gold tracking-[0.4em] uppercase">
-              Spaces / Inspiration
-            </span>
-          </div>
-
-          {/* Title */}
-          <h1
-            className="font-display font-light text-[clamp(2.5rem,5vw,4.5rem)] text-cream m-0 leading-tight mb-2"
-            style={fadeUp("300ms")}
-          >
-            Styling Your <em className="text-gold italic font-medium">{space.name}</em>
-          </h1>
-
-          {/* Tagline */}
-          <p
-            className="font-display font-normal text-[clamp(1rem,1.5vw,1.3rem)] italic text-gold/80 m-0 tracking-wide"
-            style={fadeUp("450ms")}
-          >
-            {space.tagline}
-          </p>
-        </div>
-      </section>
+      <AtelierHero 
+        eyebrow="Spaces / Inspiration"
+        title={`Styling Your ${space.name}`}
+        subtitle={space.tagline}
+        bottomText="↓ Design Tips & Gallery ↓"
+        images={galleryImages}
+      />
 
       {/* Narrative Intro Section */}
       <section className="border-b border-border bg-background">

@@ -1,9 +1,19 @@
+import { useState, useEffect } from "react";
 import ProductCard from "../common/ProductCard";
 
+const ITEMS_PER_PAGE = 8;
+
 export default function ShopProductGrid({ products, onClearFilters }) {
+  const [visibleLimit, setVisibleLimit] = useState(ITEMS_PER_PAGE);
+
+  // Reset pagination limit whenever the input products list changes (e.g. on new filter clicks)
+  useEffect(() => {
+    setVisibleLimit(ITEMS_PER_PAGE);
+  }, [products]);
+
   if (products.length === 0) {
     return (
-      <div className="text-center py-16 bg-surface border border-border px-6">
+      <div className="text-center py-16 bg-surface border border-border px-6 rounded-[24px]">
         <p className="font-display font-light italic text-[1.5rem] text-muted">
           No products match your filters.
         </p>
@@ -17,11 +27,30 @@ export default function ShopProductGrid({ products, onClearFilters }) {
     );
   }
 
+  const paginatedProducts = products.slice(0, visibleLimit);
+  const hasMore = products.length > visibleLimit;
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10 animate-fadeIn">
-      {products.map((product) => (
-        <ProductCard key={product.id || product._id} product={product} />
-      ))}
+    <div className="space-y-12">
+      {/* Product Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10 animate-fadeIn">
+        {paginatedProducts.map((product) => (
+          <ProductCard key={product.id || product._id} product={product} />
+        ))}
+      </div>
+
+      {/* Load More Button */}
+      {hasMore && (
+        <div className="flex justify-center pt-4 animate-fadeIn">
+          <button
+            type="button"
+            onClick={() => setVisibleLimit((prev) => prev + ITEMS_PER_PAGE)}
+            className="px-8 py-3.5 bg-transparent border border-border text-ink hover:bg-surface font-body font-medium text-xs tracking-widest uppercase rounded-[2px] transition-all duration-300 hover:border-bronze hover:text-bronze cursor-pointer"
+          >
+            Load More Pieces
+          </button>
+        </div>
+      )}
     </div>
   );
 }

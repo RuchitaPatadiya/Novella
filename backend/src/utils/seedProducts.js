@@ -282,6 +282,141 @@ const seedProducts = [
     careInstructions: "Use coasters and heat-resistant pads. Clean with a damp microfiber cloth and wipe dry immediately. Apply oil conditioner twice a year.",
     spaces: ["dining-room", "living-room", "home-office"],
     collections: ["modern-minimalist", "luxury-living"]
+  },
+  {
+    id: 13,
+    name: "Japanese Oak Dining Table",
+    category: "furniture",
+    price: 84000,
+    originalPrice: 92000,
+    rating: 0,
+    reviewsCount: 0,
+    badge: "New",
+    images: [
+      "https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?w=1000&q=80",
+      "https://images.unsplash.com/photo-1577140917170-285929fb55b7?w=1000&q=80"
+    ],
+    description: "Crafted from sustainable Japanese white oak, this dining table marries clean Scandinavian lines with raw Japanese wabi-sabi edge profiles. Hand-finished in a light matte oil to expose natural grain patterns.",
+    specifications: {
+      "Dimensions": "W: 84\" | D: 38\" | H: 30\"",
+      "Material": "Solid Japanese White Oak",
+      "Finish": "Natural Organic Matte Oil"
+    },
+    careInstructions: "Wipe with a damp cloth. Avoid harsh chemicals. Apply wood wax every 6 months to nourish the oak.",
+    spaces: ["dining-room"],
+    collections: ["wabi-sabi", "new-arrivals", "luxury-living"]
+  },
+  {
+    id: 14,
+    name: "Bouclé Lounge Armchair",
+    category: "furniture",
+    price: 29000,
+    originalPrice: null,
+    rating: 0,
+    reviewsCount: 0,
+    badge: "Bestseller",
+    images: [
+      "https://images.unsplash.com/photo-1598191383426-abf20c159816?w=1000&q=80",
+      "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=1000&q=80"
+    ],
+    description: "The ultimate accent seat for your bedroom sanctuary or lounge. Draped in high-pile Belgian bouclé wool, featuring a low-slung contoured back and concealed swivel base for seamless rotation.",
+    specifications: {
+      "Dimensions": "W: 32\" | D: 34\" | H: 28\"",
+      "Material": "High-Pile Bouclé (70% Wool, 30% Acrylic)",
+      "Frame": "Reinforced Solid Pine"
+    },
+    careInstructions: "Professional upholstery cleaning recommended. Blot liquid stains immediately with a clean, dry cloth.",
+    spaces: ["living-room", "bedroom"],
+    collections: ["modern-minimalist", "best-sellers"]
+  },
+  {
+    id: 15,
+    name: "Travertine Arch Table Lamp",
+    category: "lighting",
+    price: 18500,
+    originalPrice: 21000,
+    rating: 0,
+    reviewsCount: 0,
+    badge: null,
+    images: [
+      "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=1000&q=80",
+      "https://images.unsplash.com/photo-1540518614846-7eded433c457?w=1000&q=80"
+    ],
+    description: "Carved from a single block of natural beige travertine, this lamp features a bold geometric arch design. Finished with an organic raw linen shade that diffuses a warm, atmospheric glow.",
+    specifications: {
+      "Dimensions": "W: 12\" | H: 22\" | Depth: 6\"",
+      "Material": "Honed Italian Travertine & Natural Linen Shade",
+      "Socket": "E27, max 40W (LED compatible)"
+    },
+    careInstructions: "Wipe base with a dry microfiber cloth. Avoid getting moisture on the unsealed travertine stone.",
+    spaces: ["living-room", "bedroom", "home-office"],
+    collections: ["luxury-living", "wabi-sabi"]
+  },
+  {
+    id: 16,
+    name: "Brass Ocular Pendant Light",
+    category: "lighting",
+    price: 22000,
+    originalPrice: 25000,
+    rating: 0,
+    reviewsCount: 0,
+    badge: "Limited Edition",
+    images: [
+      "https://images.unsplash.com/photo-1513506003901-1e6a35086e84?w=1000&q=80"
+    ],
+    description: "A minimalist masterpiece crafted from solid hand-spun brass with a brushed, unlacquered finish that will develop a rich natural patina over time. Houses a frosted glass orb that casts even, glare-free light.",
+    specifications: {
+      "Dimensions": "Diameter: 16\" | Adjustable Cord: 60\"",
+      "Material": "Spun Brass & Frosted White Glass",
+      "Voltage": "220-240V"
+    },
+    careInstructions: "Dust lightly with a dry feather duster. Do not use metal polish unless you wish to remove the natural aged patina.",
+    spaces: ["dining-room", "living-room"],
+    collections: ["modern-minimalist", "luxury-living"]
+  },
+  {
+    id: 17,
+    name: "Ceramic Totem Sculpture",
+    category: "decor-accessories",
+    price: 8500,
+    originalPrice: null,
+    rating: 0,
+    reviewsCount: 0,
+    badge: null,
+    images: [
+      "https://images.unsplash.com/photo-1578500494198-246f612d3b3d?w=1000&q=80"
+    ],
+    description: "A hand-thrown ceramic sculpture composed of interlocking geometric clay totems. Finished in a textured, volcanic sand glaze that mimics the weathered stones of the Mediterranean coast.",
+    specifications: {
+      "Dimensions": "W: 6\" | H: 18\"",
+      "Material": "Stoneware Clay",
+      "Glaze": "Volcanic Matte White Sand"
+    },
+    careInstructions: "Wipe clean with a dry cloth. Handle with care as this piece is delicate and unglazed on the bottom.",
+    spaces: ["living-room", "home-office", "bedroom"],
+    collections: ["wabi-sabi", "new-arrivals"]
+  },
+  {
+    id: 18,
+    name: "Washed Silk Velvet Cushion",
+    category: "textiles",
+    price: 4500,
+    originalPrice: 5500,
+    rating: 0,
+    reviewsCount: 0,
+    badge: "Bestseller",
+    images: [
+      "https://images.unsplash.com/photo-1584100936595-c0654b55a2e6?w=1000&q=80"
+    ],
+    description: "Luxuriously heavy washed silk velvet cushions featuring a raw flanged edge. Garment-dyed in small batches for subtle variations in shade, offering unmatched softness and organic elegance.",
+    specifications: {
+      "Dimensions": "20\" x 20\"",
+      "Material": "80% Silk, 20% Cotton Velvet",
+      "Insert": "90% Duck Feather, 10% Down Fill"
+    },
+    careInstructions: "Dry clean only. Plump cushions regularly to maintain loft and shape.",
+    spaces: ["living-room", "bedroom"],
+    collections: ["modern-minimalist", "best-sellers"]
   }
 ];
 

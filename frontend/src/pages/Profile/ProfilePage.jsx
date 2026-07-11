@@ -4,18 +4,19 @@ import { useAuth } from "../../context/AuthContext";
 import API from "../../services/api";
 
 const ProfilePage = () => {
-  const { user, logout, updateProfile, error: authError } = useAuth();
+  const { user, logout, updateProfile, addAddress, deleteAddress, updateAddress, error: authError } = useAuth();
   const navigate = useNavigate();
+  const defaultAddress = user.addresses?.find((addr) => addr.isDefault) || user.addresses?.[0] || null;
 
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    phone: user?.phone || "",
-    street: user?.address?.street || "",
-    apartment: user?.address?.apartment || "",
-    city: user?.address?.city || "",
-    state: user?.address?.state || "",
-    zipCode: user?.address?.zipCode || "",
+    name: "",
+    email: "",
+    phone: "",
+    street: "",
+    apartment: "",
+    city: "",
+    state: "",
+    zipCode: "",
   });
 
   const [isEditing, setIsEditing] = useState(false);
@@ -23,6 +24,97 @@ const ProfilePage = () => {
   const [successMsg, setSuccessMsg] = useState("");
   const [error, setError] = useState("");
   const [selectedOrder, setSelectedOrder] = useState(null);
+  const [activeTab, setActiveTab] = useState("overview");
+
+  // Address book states
+  const [newAddrForm, setNewAddrForm] = useState({
+    name: "",
+    street: "",
+    apartment: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    phone: "",
+    isDefault: false
+  });
+  const [editingAddressId, setEditingAddressId] = useState(null);
+  const [isAddingAddr, setIsAddingAddr] = useState(false);
+  const [addrError, setAddrError] = useState("");
+  const [addrSuccess, setAddrSuccess] = useState("");
+
+  const handleAddrChange = (e) => {
+    const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    setNewAddrForm({ ...newAddrForm, [e.target.name]: val });
+    setAddrError("");
+    setAddrSuccess("");
+  };
+
+  const handleAddAddrSubmit = async (e) => {
+    e.preventDefault();
+    if (!newAddrForm.street || !newAddrForm.city || !newAddrForm.state || !newAddrForm.zipCode) {
+      setAddrError("Please fill out all required address fields.");
+      return;
+    }
+    setAddrError("");
+    setAddrSuccess("");
+    try {
+      if (editingAddressId) {
+        await updateAddress(editingAddressId, newAddrForm);
+        setAddrSuccess("Address updated successfully.");
+      } else {
+        await addAddress(newAddrForm);
+        setAddrSuccess("New address added successfully.");
+      }
+      setNewAddrForm({
+        name: "",
+        street: "",
+        apartment: "",
+        city: "",
+        state: "",
+        zipCode: "",
+        phone: "",
+        isDefault: false
+      });
+      setEditingAddressId(null);
+      setIsAddingAddr(false);
+    } catch (err) {
+      setAddrError(err.message || "Failed to save address.");
+    }
+  };
+
+  const handleEditAddr = (addr) => {
+    setEditingAddressId(addr._id);
+    setNewAddrForm({
+      name: addr.name || "",
+      street: addr.street || "",
+      apartment: addr.apartment || "",
+      city: addr.city || "",
+      state: addr.state || "",
+      zipCode: addr.zipCode || "",
+      phone: addr.phone || "",
+      isDefault: addr.isDefault || false
+    });
+    setIsAddingAddr(true);
+    setAddrError("");
+    setAddrSuccess("");
+  };
+
+  const handleDeleteAddr = async (addrId) => {
+    setAddrError("");
+    setAddrSuccess("");
+    if (window.confirm("Are you sure you want to delete this address?")) {
+      try {
+        await deleteAddress(addrId);
+        setAddrSuccess("Address deleted successfully.");
+        if (editingAddressId === addrId) {
+          setEditingAddressId(null);
+          setIsAddingAddr(false);
+        }
+      } catch (err) {
+        setAddrError(err.message || "Failed to delete address.");
+      }
+    }
+  };
 
   // Sync form details when user session changes
   useEffect(() => {
@@ -215,583 +307,541 @@ const ProfilePage = () => {
               )}
             </div>
 
-            {/* Premium Perks Box */}
-            <div className="bg-surface border border-border/80 p-6 flex flex-col justify-between">
-              <div>
-                <p className="font-body font-light text-[0.55rem] tracking-[0.3em] uppercase text-gold/60 mb-2">
-                  Novella Concierge
-                </p>
-                <p className="font-display font-light text-base text-ink leading-relaxed">
-                  Enjoy complimentary styling advice and priority scheduling on future space designs.
-                </p>
-              </div>
-              <div className="mt-5 w-8 h-[1px] bg-bronze" />
+            {/* Sidebar Navigation */}
+            <div className="bg-surface border border-border p-6 rounded-[24px]">
+              <span className="font-body font-normal text-[0.55rem] tracking-[0.25em] uppercase text-muted block mb-4 px-2">
+                Atelier Account Menu
+              </span>
+              <nav className="space-y-1.5 font-body text-xs">
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("overview"); setSelectedOrder(null); }}
+                  className={`w-full text-left px-4 py-3 rounded-[8px] transition-all duration-300 border-0 cursor-pointer flex items-center gap-3 ${
+                    activeTab === "overview"
+                      ? "bg-ink text-background font-medium"
+                      : "bg-transparent text-ink/75 hover:bg-surface/60 hover:text-bronze"
+                  }`}
+                >
+                  <svg className="w-4.5 h-4.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  Overview & Details
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("orders"); setSelectedOrder(null); }}
+                  className={`w-full text-left px-4 py-3 rounded-[8px] transition-all duration-300 border-0 cursor-pointer flex items-center gap-3 ${
+                    activeTab === "orders"
+                      ? "bg-ink text-background font-medium"
+                      : "bg-transparent text-ink/75 hover:bg-surface/60 hover:text-bronze"
+                  }`}
+                >
+                  <svg className="w-4.5 h-4.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                  </svg>
+                  Order History
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("addresses"); setSelectedOrder(null); }}
+                  className={`w-full text-left px-4 py-3 rounded-[8px] transition-all duration-300 border-0 cursor-pointer flex items-center gap-3 ${
+                    activeTab === "addresses"
+                      ? "bg-ink text-background font-medium"
+                      : "bg-transparent text-ink/75 hover:bg-surface/60 hover:text-bronze"
+                  }`}
+                >
+                  <svg className="w-4.5 h-4.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Saved Addresses
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab("concierge"); setSelectedOrder(null); }}
+                  className={`w-full text-left px-4 py-3 rounded-[8px] transition-all duration-300 border-0 cursor-pointer flex items-center gap-3 ${
+                    activeTab === "concierge"
+                      ? "bg-ink text-background font-medium"
+                      : "bg-transparent text-ink/75 hover:bg-surface/60 hover:text-bronze"
+                  }`}
+                >
+                  <svg className="w-4.5 h-4.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  Atelier Concierge
+                </button>
+              </nav>
             </div>
           </div>
 
-          {/* Column Right: Profile Form & History */}
+          {/* Column Right: Profile Dynamic Panels */}
           <div className="lg:col-span-8 space-y-12">
             
-            {/* Success/Error Alerts */}
-            {successMsg && (
-              <div className="bg-emerald-50/60 border border-emerald-200 text-emerald-800 px-5 py-4 text-xs font-body tracking-[0.02em] rounded-sm flex items-center gap-3 transition-all duration-300">
-                <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{successMsg}</span>
-              </div>
-            )}
-            
-            {(error || authError) && (
-              <div className="bg-red-50/60 border border-red-200 text-red-700 px-5 py-4 text-xs font-body tracking-[0.02em] rounded-sm flex items-center gap-3 transition-all duration-300">
-                <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <span>{error || authError}</span>
-              </div>
-            )}
-
-            {/* Profile Settings Block */}
-            <div className="bg-surface/30 border border-border p-8 md:p-10">
-              <div className="flex justify-between items-center mb-8 pb-3 border-b border-border/50">
-                <h3 className="font-display font-light text-2xl text-ink">Personal Information</h3>
-                {!isEditing ? (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase text-bronze hover:text-gold transition-colors duration-200"
-                  >
-                    Edit Details
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => {
-                      setIsEditing(false);
-                      setFormData({
-                        name: user.name,
-                        email: user.email,
-                        phone: user.phone || "",
-                        street: user.address?.street || "",
-                        apartment: user.address?.apartment || "",
-                        city: user.address?.city || "",
-                        state: user.address?.state || "",
-                        zipCode: user.address?.zipCode || "",
-                      });
-                      setError("");
-                    }}
-                    className="font-body font-light text-[0.62rem] tracking-[0.2em] uppercase text-muted hover:text-ink transition-colors duration-200"
-                  >
-                    Cancel
-                  </button>
-                )}
-              </div>
-
-              <form onSubmit={handleUpdate} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-1">
-                    <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      className={`w-full bg-background border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 ${
-                        isEditing
-                          ? "border-border focus:border-bronze focus:ring-1 focus:ring-bronze/10"
-                          : "border-transparent bg-transparent pl-0 text-ink/75 font-normal cursor-not-allowed"
-                      }`}
-                      required
-                    />
+            {/* Tab: OVERVIEW */}
+            {activeTab === "overview" && (
+              <div className="space-y-12 animate-fadeIn">
+                {/* Personal Information Block */}
+                <div className="bg-surface/30 border border-border p-8 md:p-10 rounded-[24px]">
+                  <div className="flex justify-between items-center mb-8 pb-3 border-b border-border/50">
+                    <h3 className="font-display font-light text-2xl text-ink">Personal Information</h3>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                      Email Address
-                    </label>
-                    <input
-                      type="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      className={`w-full bg-background border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 ${
-                        isEditing
-                          ? "border-border focus:border-bronze focus:ring-1 focus:ring-bronze/10"
-                          : "border-transparent bg-transparent pl-0 text-ink/75 font-normal cursor-not-allowed"
-                      }`}
-                      required
-                    />
-                  </div>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          Full Name
+                        </label>
+                        <p className="font-body text-sm text-ink/80 py-1.5 m-0 font-medium">{user.name}</p>
+                      </div>
 
-                  <div className="space-y-1">
-                    <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                      Phone Number
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      disabled={!isEditing}
-                      placeholder={isEditing ? "e.g. +1 (555) 019-2834" : "Not specified"}
-                      className={`w-full bg-background border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 ${
-                        isEditing
-                          ? "border-border focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-                          : "border-transparent bg-transparent pl-0 text-ink/75 font-normal cursor-not-allowed"
-                      }`}
-                    />
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          Email Address
+                        </label>
+                        <p className="font-body text-sm text-ink/80 py-1.5 m-0 font-medium">{user.email}</p>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          Phone Number
+                        </label>
+                        <p className="font-body text-sm text-ink/80 py-1.5 m-0 font-medium">{user.phone || "Not specified"}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 pt-4 border-t border-border/40">
+                      <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-2">
+                        Default Shipping Address
+                      </label>
+                      {defaultAddress ? (
+                        <div className="font-body text-sm text-ink/75 leading-relaxed space-y-0.5">
+                          <p className="m-0 font-display font-medium text-xs text-bronze uppercase tracking-wider mb-1">{defaultAddress.name}</p>
+                          <p className="m-0">{defaultAddress.street}{defaultAddress.apartment ? `, ${defaultAddress.apartment}` : ""}</p>
+                          <p className="m-0">{defaultAddress.city}, {defaultAddress.state} {defaultAddress.zipCode}</p>
+                          {defaultAddress.phone && <p className="m-0 text-ink/65 pt-1 text-xs">📞 {defaultAddress.phone}</p>}
+                        </div>
+                      ) : (
+                        <p className="font-body text-sm text-muted/50 italic py-1 m-0">No default address saved. Set one in your address book.</p>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {!isEditing ? (
-                  <div className="space-y-1">
-                    <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                      Shipping Address
-                    </label>
-                    {formData.street ? (
-                      <div className="font-body text-sm text-ink/75 py-2 leading-relaxed">
-                        <p className="m-0">{formData.street}{formData.apartment ? `, ${formData.apartment}` : ""}</p>
-                        <p className="m-0">{formData.city}, {formData.state} {formData.zipCode}</p>
-                      </div>
-                    ) : (
-                      <p className="font-body text-sm text-muted/50 italic py-2 m-0">No address saved</p>
+                {/* Recent Orders block (max 2) */}
+                <div className="bg-surface/30 border border-border p-8 md:p-10 rounded-[24px]">
+                  <div className="flex justify-between items-center mb-8 pb-3 border-b border-border/50">
+                    <h3 className="font-display font-light text-2xl text-ink">Recent Orders</h3>
+                    {dbOrders.length > 2 && (
+                      <button
+                        onClick={() => setActiveTab("orders")}
+                        className="font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase text-bronze hover:text-gold transition-colors duration-200 bg-transparent border-0 cursor-pointer"
+                      >
+                        View All Orders &rarr;
+                      </button>
                     )}
                   </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                        Street Address
-                      </label>
-                      <input
-                        type="text"
-                        name="street"
-                        value={formData.street}
-                        onChange={handleChange}
-                        placeholder="Flat, House no., Building, Company"
-                        className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-                      />
-                    </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                          Apartment, suite, unit (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          name="apartment"
-                          value={formData.apartment}
-                          onChange={handleChange}
-                          placeholder="e.g. Apt 4B"
-                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                          Town / City
-                        </label>
-                        <input
-                          type="text"
-                          name="city"
-                          value={formData.city}
-                          onChange={handleChange}
-                          placeholder="e.g. Mumbai"
-                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                          State
-                        </label>
-                        <input
-                          type="text"
-                          name="state"
-                          value={formData.state}
-                          onChange={handleChange}
-                          placeholder="e.g. Maharashtra"
-                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-                        />
-                      </div>
-
-                      <div className="space-y-1">
-                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
-                          ZIP / Postal Code
-                        </label>
-                        <input
-                          type="text"
-                          name="zipCode"
-                          value={formData.zipCode}
-                          onChange={handleChange}
-                          placeholder="e.g. 400001"
-                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 placeholder:text-muted/40"
-                        />
-                      </div>
-                    </div>
+                  <div className="space-y-6">
+                    {dbOrders.length > 0 ? (
+                      dbOrders.slice(0, 2).map((order) => (
+                        <div
+                          key={order.id}
+                          onClick={() => navigate(`/order/${order.orderId}`)}
+                          className="border border-border/80 bg-background/50 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:border-bronze/40 cursor-pointer group/order rounded-[12px]"
+                        >
+                          <div>
+                            <div className="flex items-center gap-3">
+                              <span className="font-body font-medium text-[0.78rem] text-ink group-hover/order:text-bronze transition-colors duration-200">{order.id}</span>
+                              <span className="w-1.5 h-1.5 rounded-full bg-bronze/40" />
+                              <span className="font-body font-light text-xs text-muted">{order.date}</span>
+                            </div>
+                            <p className="font-display font-light text-sm text-ink/80 mt-2">
+                              {order.items}
+                            </p>
+                          </div>
+                          
+                          <div className="flex items-center justify-between md:justify-end gap-6 md:text-right">
+                            <div className="flex flex-col">
+                              <span className="font-body font-light text-[0.62rem] tracking-[0.1em] uppercase text-muted">Total</span>
+                              <span className="font-body font-medium text-[0.78rem] text-ink mt-0.5">₹{order.pricingBreakdown?.total?.toLocaleString("en-IN") || order.total?.toLocaleString("en-IN")}</span>
+                            </div>
+                            
+                            <div className="flex flex-col items-end">
+                              <span className="font-body font-light text-[0.62rem] tracking-[0.1em] uppercase text-muted">Status</span>
+                              <span className={`font-body font-normal text-[0.65rem] tracking-[0.12em] uppercase mt-1 px-2.5 py-0.5 rounded-full border ${
+                                order.status === "Cancelled"
+                                  ? "bg-red-50/50 text-red-700 border-red-100"
+                                  : "bg-bronze/5 text-bronze border-bronze/15"
+                              }`}>
+                                {order.status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="font-body text-sm text-muted/50 italic py-2 m-0">No orders placed yet.</p>
+                    )}
                   </div>
-                )}
-
-                {isEditing && (
-                  <button
-                    type="submit"
-                    disabled={loading}
-                    className="bg-ink text-cream-muted font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase px-8 py-3.5 mt-2 transition-all duration-300 hover:bg-gold hover:text-dark disabled:opacity-50 cursor-pointer"
-                  >
-                    {loading ? "Saving Changes..." : "Save Changes"}
-                  </button>
-                )}
-              </form>
-            </div>
-
-            {/* Order History Block */}
-            <div className="bg-surface/30 border border-border p-8 md:p-10">
-              <h3 className="font-display font-light text-2xl text-ink mb-8 pb-3 border-b border-border/50">
-                Recent Orders
-              </h3>
-
-              <div className="space-y-6">
-                {activeOrders.map((order) => (
-                  <div
-                    key={order.id}
-                    onClick={() => setSelectedOrder(order)}
-                    className="border border-border/80 bg-background/50 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:border-bronze/40 cursor-pointer group/order"
-                  >
-                    <div>
-                      <div className="flex items-center gap-3">
-                        <span className="font-body font-medium text-[0.78rem] text-ink group-hover/order:text-bronze transition-colors duration-200">{order.id}</span>
-                        <span className="w-1.5 h-1.5 rounded-full bg-bronze/40" />
-                        <span className="font-body font-light text-xs text-muted">{order.date}</span>
-                      </div>
-                      <p className="font-display font-light text-sm text-ink/80 mt-2">
-                        {order.items}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center justify-between md:justify-end gap-6 md:text-right">
-                      <div className="flex flex-col">
-                        <span className="font-body font-light text-[0.62rem] tracking-[0.1em] uppercase text-muted">Total</span>
-                        <span className="font-body font-medium text-[0.78rem] text-ink mt-0.5">{order.total}</span>
-                      </div>
-                      
-                      <div className="flex flex-col items-end">
-                        <span className="font-body font-light text-[0.62rem] tracking-[0.1em] uppercase text-muted">Status</span>
-                        <span className="font-body font-normal text-[0.65rem] tracking-[0.12em] uppercase text-bronze mt-1 bg-bronze/5 border border-bronze/10 px-2 py-0.5">
-                          {order.status}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Tab: ORDERS */}
+            {activeTab === "orders" && (
+              <div className="bg-surface/30 border border-border p-8 md:p-10 rounded-[24px] animate-fadeIn space-y-8">
+                <div className="pb-3 border-b border-border/50">
+                  <h3 className="font-display font-light text-2xl text-ink">Order History</h3>
+                  <p className="font-body text-xs text-muted mt-1.5 m-0">Track status, download invoices, or submit return requests.</p>
+                </div>
+
+                <div className="space-y-6">
+                  {dbOrders.length > 0 ? (
+                    dbOrders.map((order) => (
+                      <div
+                        key={order.id}
+                        onClick={() => navigate(`/order/${order.orderId}`)}
+                        className="border border-border/80 bg-background/50 p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all duration-300 hover:border-bronze/40 cursor-pointer group/order rounded-[12px]"
+                      >
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <span className="font-body font-medium text-[0.78rem] text-ink group-hover/order:text-bronze transition-colors duration-200">{order.id}</span>
+                            <span className="w-1.5 h-1.5 rounded-full bg-bronze/40" />
+                            <span className="font-body font-light text-xs text-muted">{order.date}</span>
+                          </div>
+                          <p className="font-display font-light text-sm text-ink/80 mt-2">
+                            {order.items}
+                          </p>
+                        </div>
+                        
+                        <div className="flex items-center justify-between md:justify-end gap-6 md:text-right">
+                          <div className="flex flex-col">
+                            <span className="font-body font-light text-[0.62rem] tracking-[0.1em] uppercase text-muted">Total</span>
+                            <span className="font-body font-medium text-[0.78rem] text-ink mt-0.5">₹{order.pricingBreakdown?.total?.toLocaleString("en-IN") || order.total?.toLocaleString("en-IN")}</span>
+                          </div>
+                          
+                          <div className="flex flex-col items-end">
+                            <span className="font-body font-light text-[0.62rem] tracking-[0.1em] uppercase text-muted">Status</span>
+                            <span className={`font-body font-normal text-[0.65rem] tracking-[0.12em] uppercase mt-1 px-2.5 py-0.5 rounded-full border ${
+                              order.status === "Cancelled"
+                                ? "bg-red-50/50 text-red-700 border-red-100"
+                                : "bg-bronze/5 text-bronze border-bronze/15"
+                            }`}>
+                              {order.status}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-16">
+                      <p className="font-display font-light italic text-lg text-muted mb-4">No orders placed yet.</p>
+                      <Link
+                        to="/shop"
+                        className="font-body text-[0.62rem] tracking-[0.2em] uppercase text-background bg-ink px-6 py-2.5 hover:bg-bronze transition-colors duration-200 rounded-[2px]"
+                      >
+                        Explore Catalog
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tab: ADDRESSES */}
+            {activeTab === "addresses" && (
+              <div className="space-y-12 animate-fadeIn">
+                {/* Address Book Card Block */}
+                <div className="bg-surface/30 border border-border p-8 md:p-10 rounded-[24px]">
+                  <div className="flex justify-between items-center mb-8 pb-3 border-b border-border/50">
+                    <h3 className="font-display font-light text-2xl text-ink">
+                      {editingAddressId ? "Edit Address" : "Saved Addresses"}
+                    </h3>
+                    {!isAddingAddr ? (
+                      <button
+                        onClick={() => setIsAddingAddr(true)}
+                        className="font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase text-bronze hover:text-gold transition-colors duration-200 bg-transparent border-0 cursor-pointer"
+                      >
+                        + Add New Address
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          setIsAddingAddr(false);
+                          setEditingAddressId(null);
+                          setNewAddrForm({
+                            name: "",
+                            street: "",
+                            apartment: "",
+                            city: "",
+                            state: "",
+                            zipCode: "",
+                            phone: "",
+                            isDefault: false
+                          });
+                        }}
+                        className="font-body font-light text-[0.62rem] tracking-[0.2em] uppercase text-muted hover:text-ink transition-colors duration-200 bg-transparent border-0 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Success/Error messages for Address Book */}
+                  {addrSuccess && (
+                    <div className="bg-bronze/5 border border-bronze/20 text-bronze px-5 py-4 text-xs font-body tracking-[0.02em] rounded-sm mb-6 flex items-center gap-3">
+                      <svg className="w-4 h-4 text-bronze shrink-0 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span>{addrSuccess}</span>
+                    </div>
+                  )}
+
+                  {addrError && (
+                    <div className="bg-red-50/60 border border-red-200 text-red-700 px-5 py-4 text-xs font-body tracking-[0.02em] rounded-sm mb-6 flex items-center gap-3">
+                      <svg className="w-4 h-4 text-red-500 shrink-0 animate-pulse" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span>{addrError}</span>
+                    </div>
+                  )}
+
+                  {!isAddingAddr ? (
+                    /* Address Cards Grid */
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      {user.addresses && user.addresses.length > 0 ? (
+                        user.addresses.map((addr) => (
+                          <div 
+                            key={addr._id} 
+                            className={`p-6 border rounded-[16px] bg-background flex flex-col justify-between relative transition-all duration-300 ${
+                              addr.isDefault ? "border-bronze shadow-xs" : "border-border hover:border-bronze/45"
+                            }`}
+                          >
+                            {addr.isDefault && (
+                              <span className="absolute top-4 right-4 bg-bronze/10 text-bronze border border-bronze/20 font-body text-[0.52rem] tracking-wider uppercase px-2 py-0.5 rounded-[4px] font-semibold">
+                                Default
+                              </span>
+                            )}
+                            <div className="space-y-2">
+                              <p className="font-display font-light text-base text-ink m-0 pr-12">
+                                {addr.name || "Address"}
+                              </p>
+                              <div className="font-body text-xs text-muted leading-relaxed space-y-1">
+                                <p className="m-0 text-ink/80">{addr.street}{addr.apartment ? `, ${addr.apartment}` : ""}</p>
+                                <p className="m-0">{addr.city}, {addr.state} {addr.zipCode}</p>
+                                <p className="m-0 pt-1 text-ink/65">📞 {addr.phone || "No phone contact"}</p>
+                              </div>
+                            </div>
+                            <div className="flex justify-end gap-3 mt-5 pt-3 border-t border-border/50 items-center">
+                              <button
+                                type="button"
+                                onClick={() => handleEditAddr(addr)}
+                                className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-bronze hover:text-gold cursor-pointer transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <span className="text-border/50 text-[10px] select-none">|</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteAddr(addr._id)}
+                                className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-red-600 hover:text-red-700 cursor-pointer transition-colors"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="sm:col-span-2 text-center py-8">
+                          <p className="font-body text-sm text-muted/50 italic m-0">No saved addresses found. Add one above to get started.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Add New Address Form */
+                    <form onSubmit={handleAddAddrSubmit} className="space-y-4 animate-fadeIn">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            Address Label (e.g. Home, Office) *
+                          </label>
+                          <input
+                            type="text"
+                            name="name"
+                            value={newAddrForm.name}
+                            onChange={handleAddrChange}
+                            placeholder="e.g. Home"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-[6px]"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            Contact Phone *
+                          </label>
+                          <input
+                            type="text"
+                            name="phone"
+                            value={newAddrForm.phone}
+                            onChange={handleAddrChange}
+                            placeholder="10-digit mobile number"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-[6px]"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                          Street Address *
+                        </label>
+                        <input
+                          type="text"
+                          name="street"
+                          value={newAddrForm.street}
+                          onChange={handleAddrChange}
+                          placeholder="Flat, House no., Building, Area"
+                          className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-[6px]"
+                          required
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            Apartment, suite, unit (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            name="apartment"
+                            value={newAddrForm.apartment}
+                            onChange={handleAddrChange}
+                            placeholder="e.g. Apt 4B"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-[6px]"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            Town / City *
+                          </label>
+                          <input
+                            type="text"
+                            name="city"
+                            value={newAddrForm.city}
+                            onChange={handleAddrChange}
+                            placeholder="e.g. Mumbai"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-[6px]"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            State *
+                          </label>
+                          <input
+                            type="text"
+                            name="state"
+                            value={newAddrForm.state}
+                            onChange={handleAddrChange}
+                            placeholder="e.g. Maharashtra"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-[6px]"
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="font-body font-normal text-[0.58rem] tracking-[0.16em] uppercase text-muted block mb-1">
+                            ZIP / Postal Code *
+                          </label>
+                          <input
+                            type="text"
+                            name="zipCode"
+                            value={newAddrForm.zipCode}
+                            onChange={handleAddrChange}
+                            placeholder="6-digit PIN code"
+                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none transition-all duration-300 focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-[6px]"
+                            required
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 py-2">
+                        <input
+                          type="checkbox"
+                          name="isDefault"
+                          id="isDefault"
+                          checked={newAddrForm.isDefault}
+                          onChange={handleAddrChange}
+                          className="cursor-pointer accent-bronze w-4 h-4"
+                        />
+                        <label htmlFor="isDefault" className="font-body text-xs text-muted cursor-pointer select-none">
+                          Set as default shipping address
+                        </label>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="bg-ink text-background font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase px-8 py-3.5 mt-2 transition-all duration-300 hover:bg-bronze cursor-pointer rounded-[4px]"
+                      >
+                        {editingAddressId ? "Save Changes" : "Save Address"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Tab: CONCIERGE */}
+            {activeTab === "concierge" && (
+              <div className="bg-surface/30 border border-border p-8 md:p-10 rounded-[24px] animate-fadeIn space-y-8">
+                <div className="pb-3 border-b border-border/50">
+                  <h3 className="font-display font-light text-2xl text-ink">Atelier Concierge</h3>
+                  <p className="font-body text-xs text-muted mt-1.5 m-0">Direct support and premium design advisory services.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="border border-border/60 bg-background/50 p-6 rounded-[16px] space-y-3">
+                    <span className="font-body font-normal text-[0.55rem] tracking-[0.2em] uppercase text-bronze block">
+                      Styling Advisory
+                    </span>
+                    <p className="font-display font-light text-lg text-ink m-0">Complimentary Styling Advice</p>
+                    <p className="font-body text-xs text-muted leading-relaxed m-0">
+                      As an Atelier Collector, you have direct access to our styling consultants. Schedule a call to discuss curation, colors, or spatial layout matching for your home.
+                    </p>
+                    <button className="mt-2 font-body text-[0.58rem] tracking-[0.28em] uppercase text-bronze hover:text-gold bg-transparent border-0 cursor-pointer font-medium p-0">
+                      SCHEDULE SESSION &rarr;
+                    </button>
+                  </div>
+
+                  <div className="border border-border/60 bg-background/50 p-6 rounded-[16px] space-y-3">
+                    <span className="font-body font-normal text-[0.55rem] tracking-[0.2em] uppercase text-bronze block">
+                      Priority Shipping
+                    </span>
+                    <p className="font-display font-light text-lg text-ink m-0">Track & Manage Deliveries</p>
+                    <p className="font-body text-xs text-muted leading-relaxed m-0">
+                      All your deliveries are handled with premium white-glove packaging. For custom requests or adjustments to active shipments, please get in touch with our operations desk.
+                    </p>
+                    <a href="mailto:support@novella.com" className="inline-block mt-2 font-body text-[0.58rem] tracking-[0.28em] uppercase text-bronze hover:text-gold font-medium no-underline">
+                      EMAIL SUPPORT &rarr;
+                    </a>
+                  </div>
+                </div>
+              </div>
+            )}
 
           </div>
         </div>
 
       </div>
 
-      {/* Order Details Modal Overlay */}
-      {selectedOrder && (() => {
-        const normalized = (() => {
-          if (!selectedOrder) return null;
-          if (selectedOrder.products) return selectedOrder;
-          
-          // Mock order 1 mapping
-          if (selectedOrder.id === "NV-8921") {
-            return {
-              ...selectedOrder,
-              products: [
-                {
-                  id: 3,
-                  name: "Travertine Side Table",
-                  price: 8900,
-                  quantity: 1,
-                  image: "https://images.unsplash.com/photo-1567538096630-e0c55bd6374c?w=600&q=80",
-                  color: "Beige",
-                  size: "Standard"
-                }
-              ],
-              shippingDetails: {
-                name: user.name,
-                address: user.address || "742 Evergreen Terrace, Springfield, OR 97477",
-                phone: user.phone || "+91 99887 76655",
-                method: "standard"
-              },
-              paymentDetails: {
-                method: "razorpay",
-                razorpayPaymentId: "pay_sample_01"
-              },
-              pricingBreakdown: {
-                subtotal: 8900,
-                discount: 0,
-                shipping: 0,
-                total: 8900
-              }
-            };
-          }
-
-          // Mock order 2 mapping
-          if (selectedOrder.id === "NV-7634") {
-            return {
-              ...selectedOrder,
-              products: [
-                {
-                  id: 1,
-                  name: "Arco Floor Lamp",
-                  price: 4200,
-                  quantity: 1,
-                  image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&q=80",
-                  color: "Chrome/White",
-                  size: "Standard"
-                }
-              ],
-              shippingDetails: {
-                name: user.name,
-                address: user.address || "742 Evergreen Terrace, Springfield, OR 97477",
-                phone: user.phone || "+91 99887 76655",
-                method: "standard"
-              },
-              paymentDetails: {
-                method: "razorpay",
-                razorpayPaymentId: "pay_sample_02"
-              },
-              pricingBreakdown: {
-                subtotal: 4200,
-                discount: 0,
-                shipping: 0,
-                total: 4200
-              }
-            };
-          }
-
-          return {
-            ...selectedOrder,
-            products: [],
-            shippingDetails: { name: user.name, address: user.address || "No address stored", phone: user.phone || "No phone stored", method: "standard" },
-            paymentDetails: { method: "razorpay" },
-            pricingBreakdown: { subtotal: 0, discount: 0, shipping: 0, total: 0 }
-          };
-        })();
-
-        if (!normalized) return null;
-
-        // Stepper statuses setup
-        const steps = [
-          { label: "Ordered", date: normalized.date, completed: true },
-          { label: "Prepared", date: normalized.date, completed: true },
-          { label: "Shipped", date: normalized.date, completed: normalized.status === "Shipped" || normalized.status === "Delivered" },
-          { label: "Delivered", date: normalized.status === "Delivered" ? normalized.date : "Estimated 4-7 days", completed: normalized.status === "Delivered" }
-        ];
-
-        return (
-          <div
-            className="fixed inset-0 bg-dark/65 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fadeIn"
-            onClick={() => setSelectedOrder(null)}
-          >
-            <div
-              className="bg-background border border-border w-full max-w-2xl max-h-[85vh] overflow-y-auto p-6 md:p-10 shadow-2xl relative flex flex-col gap-8 rounded-[3px] animate-scaleUp"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Close Button */}
-              <button
-                onClick={() => setSelectedOrder(null)}
-                className="absolute top-5 right-5 text-ink/65 hover:text-bronze bg-transparent border-0 cursor-pointer p-1 transition-colors duration-200"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-
-              {/* Header */}
-              <div>
-                <div className="flex items-center gap-2.5 mb-1.5">
-                  <span className="block w-5 h-px bg-bronze" />
-                  <span className="font-body font-normal text-[0.55rem] tracking-[0.38em] uppercase text-bronze">
-                    Order Details
-                  </span>
-                </div>
-                <h2 className="font-display font-light text-2xl text-ink leading-tight m-0">
-                  Receipt for {normalized.id}
-                </h2>
-                <p className="font-body font-light text-xs text-muted mt-1.5 m-0">
-                  Placed on {normalized.date} · Status: <span className="text-bronze font-medium">{normalized.status}</span>
-                </p>
-              </div>
-
-              {/* Progress Stepper */}
-              <div className="border-y border-border/60 py-6 my-1">
-                <div className="flex justify-between items-center relative">
-                  
-                  {/* Background bar */}
-                  <div className="absolute left-0 right-0 h-[2px] bg-border z-0" />
-                  
-                  {/* Progress fill bar */}
-                  <div
-                    className="absolute left-0 h-[2px] bg-bronze z-0 transition-all duration-500"
-                    style={{
-                      width:
-                        normalized.status === "Delivered"
-                          ? "100%"
-                          : normalized.status === "Shipped"
-                          ? "66.6%"
-                          : "33.3%"
-                    }}
-                  />
-
-                  {/* Nodes */}
-                  {steps.map((step, idx) => (
-                    <div key={step.label} className="flex flex-col items-center z-10 relative">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center border font-body text-[0.68rem] transition-all duration-300 ${
-                        step.completed
-                          ? "bg-bronze border-bronze text-background"
-                          : "bg-background border-border text-muted"
-                      }`}>
-                        {step.completed ? "✓" : idx + 1}
-                      </div>
-                      <span className="font-body font-medium text-[0.62rem] tracking-wider uppercase text-ink mt-2.5">
-                        {step.label}
-                      </span>
-                      <span className="font-body font-light text-[0.55rem] text-muted mt-0.5">
-                        {step.date}
-                      </span>
-                    </div>
-                  ))}
-
-                </div>
-              </div>
-
-              {/* Products Table */}
-              <div className="space-y-4">
-                <h4 className="font-display font-normal text-[1.05rem] text-ink m-0 pb-2 border-b border-border/40">
-                  Ordered Items
-                </h4>
-                <div className="divide-y divide-border/40">
-                  {normalized.products.map((p, idx) => (
-                    <div key={idx} className="py-3.5 flex gap-4 text-xs font-body items-start">
-                      {p.image && (
-                        <img
-                          src={p.image}
-                          alt={p.name}
-                          className="w-12 h-14 object-cover border border-border/60 bg-surface shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <span className="font-medium text-ink block truncate">{p.name}</span>
-                        <div className="flex gap-2 text-[0.68rem] text-muted font-light mt-1">
-                          {p.color && <span>Color: {p.color}</span>}
-                          {p.size && <span>Size: {p.size}</span>}
-                          <span>Quantity: {p.quantity}</span>
-                        </div>
-                      </div>
-                      <span className="font-medium text-ink shrink-0">
-                        ₹{(p.price * p.quantity).toLocaleString("en-IN")}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Grid: Shipping and Payment */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-[0.78rem] font-body bg-surface/50 border border-border/60 p-5 rounded-[2px]">
-                
-                <div className="space-y-2">
-                  <h5 className="font-display font-medium text-xs text-ink uppercase tracking-wider m-0">
-                    Shipping Details
-                  </h5>
-                  <div className="font-light text-ink/80 space-y-1">
-                    <p className="font-normal m-0">{normalized.shippingDetails.name}</p>
-                    <p className="m-0 leading-relaxed whitespace-pre-line">
-                      {typeof normalized.shippingDetails.address === "object"
-                        ? `${normalized.shippingDetails.address.street}${normalized.shippingDetails.address.apartment ? `, ${normalized.shippingDetails.address.apartment}` : ""}\n${normalized.shippingDetails.address.city}, ${normalized.shippingDetails.address.state} ${normalized.shippingDetails.address.zipCode}`
-                        : normalized.shippingDetails.address}
-                    </p>
-                    <p className="m-0 text-muted">Tel: {normalized.shippingDetails.phone}</p>
-                    <p className="m-0 text-[0.68rem] tracking-wider uppercase text-bronze font-normal mt-1.5">
-                      Method: {normalized.shippingDetails.method === "express" ? "White-Glove Express" : "Atelier Standard"}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-4 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <h5 className="font-display font-medium text-xs text-ink uppercase tracking-wider m-0">
-                      Payment Method
-                    </h5>
-                    <div className="font-light text-ink/80 space-y-1">
-                      <p className="m-0 font-normal capitalize">
-                        {normalized.paymentDetails?.paymentMethod || normalized.paymentDetails?.method || "Razorpay"}
-                        {normalized.paymentDetails?.paymentStatus && ` (${normalized.paymentDetails.paymentStatus})`}
-                      </p>
-                      {(normalized.paymentDetails?.transactionToken || normalized.paymentDetails?.razorpayPaymentId) && (
-                        <p className="m-0 text-muted font-mono text-[0.7rem]">Txn: {normalized.paymentDetails.transactionToken || normalized.paymentDetails.razorpayPaymentId}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Pricing Summary */}
-                  <div className="border-t border-border/60 pt-4 space-y-2.5">
-                    <div className="flex justify-between items-center text-muted">
-                      <span className="font-light">Subtotal:</span>
-                      <span className="font-medium text-ink">₹{normalized.pricingBreakdown.subtotal.toLocaleString("en-IN")}</span>
-                    </div>
-                    {normalized.pricingBreakdown.discount > 0 && (
-                      <div className="flex justify-between items-center text-emerald-700">
-                        <span className="font-light">Promo Discount:</span>
-                        <span className="font-medium">-₹{normalized.pricingBreakdown.discount.toLocaleString("en-IN")}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center text-muted">
-                      <span className="font-light">Shipping:</span>
-                      <span className="font-medium text-ink">
-                        {normalized.pricingBreakdown.shipping > 0
-                          ? `₹${normalized.pricingBreakdown.shipping}`
-                          : "Free"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-end border-t border-border/40 pt-2 text-sm font-semibold">
-                      <span className="font-display font-medium text-ink">Grand Total:</span>
-                      <span className="font-display font-semibold text-bronze text-base leading-none">
-                        {normalized.total}
-                      </span>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-
-              {/* Customer actions: Cancel or Return */}
-              {(normalized.status === "Processing" || normalized.status === "Delivered") && (
-                <div className="flex justify-end gap-4 border-t border-border/60 pt-5">
-                  {normalized.status === "Processing" && (
-                    <button
-                      onClick={() => handleCancelOrder(normalized.id)}
-                      className="font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase border border-red-700 hover:border-red-950 text-red-700 hover:text-red-950 px-6 py-2.5 bg-transparent transition-all duration-300 cursor-pointer rounded-[2px]"
-                    >
-                      Cancel Order
-                    </button>
-                  )}
-                  {normalized.status === "Delivered" && (
-                    <button
-                      onClick={() => handleReturnOrder(normalized.id)}
-                      className="font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase border border-ink hover:border-bronze text-ink hover:text-bronze px-6 py-2.5 bg-transparent transition-all duration-300 cursor-pointer rounded-[2px]"
-                    >
-                      Request Return
-                    </button>
-                  )}
-                </div>
-              )}
-
-            </div>
-          </div>
-        );
-      })()}
 
       <style>{`
         .animate-scaleUp {

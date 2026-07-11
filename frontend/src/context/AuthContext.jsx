@@ -113,6 +113,39 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Add saved address to profile
+  const addAddress = async (addressData) => {
+    try {
+      const res = await API.post("/auth/profile/addresses", addressData);
+      setUser(prev => ({ ...prev, addresses: res.data }));
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || "Failed to add address");
+    }
+  };
+
+  // Delete saved address from profile
+  const deleteAddress = async (addressId) => {
+    try {
+      const res = await API.delete(`/auth/profile/addresses/${addressId}`);
+      setUser(prev => ({ ...prev, addresses: res.data }));
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || "Failed to delete address");
+    }
+  };
+
+  // Update saved address in profile
+  const updateAddress = async (addressId, addressData) => {
+    try {
+      const res = await API.put(`/auth/profile/addresses/${addressId}`, addressData);
+      setUser(prev => ({ ...prev, addresses: res.data }));
+      return res.data;
+    } catch (err) {
+      throw new Error(err.response?.data?.message || "Failed to update address");
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -124,6 +157,9 @@ export const AuthProvider = ({ children }) => {
         loginWithGoogle,
         logout,
         updateProfile,
+        addAddress,
+        deleteAddress,
+        updateAddress,
       }}
     >
       {children}

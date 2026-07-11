@@ -8,6 +8,7 @@ import {
   getOrderById,
   cancelOrder,
   returnOrder,
+  refundOrder,
 } from "../controllers/orderControllers.js";
 import { protect, admin } from "../middleware/authMiddleware.js";
 import { validateBody } from "../middleware/validationMiddleware.js";
@@ -42,5 +43,8 @@ router.route("/:orderId/cancel")
 
 router.route("/:orderId/return")
   .put(protect, returnOrder);
+
+router.route("/:orderId/refund")
+  .put(protect, admin, refundOrder);
 
 export default router;

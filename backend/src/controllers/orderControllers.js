@@ -1,6 +1,7 @@
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import PromoCode from "../models/PromoCode.js";
+import CmsSetting from "../models/CmsSetting.js";
 import Razorpay from "razorpay";
 import transporter from "../utils/mailer.js";
 
@@ -19,6 +20,7 @@ export const createOrder = async (req, res) => {
     date,
     products,
     shippingDetails,
+    billingDetails,
     paymentDetails,
     pricingBreakdown,
   } = req.body;
@@ -61,8 +63,40 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // 2. Validate shipping cost on the server
-    const serverShipping = shippingDetails.method === "express" ? 250 : 0;
+    // 2. Validate shipping cost on the server using CMS configuration
+    let standardShippingFee = 0;
+    let expressShippingFee = 500;
+    let freeShippingThreshold = 25000;
+    let codFee = 50;
+
+    try {
+      const cmsSettings = await CmsSetting.findOne({ key: "checkout_settings" });
+      if (cmsSettings && cmsSettings.value) {
+        if (cmsSettings.value.standardShippingFee !== undefined) {
+          standardShippingFee = Number(cmsSettings.value.standardShippingFee);
+        }
+        if (cmsSettings.value.expressShippingFee !== undefined) {
+          expressShippingFee = Number(cmsSettings.value.expressShippingFee);
+        }
+        if (cmsSettings.value.freeShippingThreshold !== undefined) {
+          freeShippingThreshold = Number(cmsSettings.value.freeShippingThreshold);
+        }
+        if (cmsSettings.value.codFee !== undefined) {
+          codFee = Number(cmsSettings.value.codFee);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load CMS checkout settings:", err);
+    }
+
+    const meetsThreshold = serverSubtotal >= freeShippingThreshold;
+    let serverShipping = shippingDetails.method === "express"
+      ? expressShippingFee
+      : (meetsThreshold ? 0 : standardShippingFee);
+
+    if (paymentDetails && (paymentDetails.method === "COD" || paymentDetails.method === "cod")) {
+      serverShipping += codFee;
+    }
 
     // 3. Validate promo code & calculate discount on the server
     let serverDiscount = 0;
@@ -102,6 +136,46 @@ export const createOrder = async (req, res) => {
       await update.product.save();
     }
 
+    // 5.5 Resolve payment instrument dynamically
+    let resolvedPaymentMethod = "Online Payment";
+    let resolvedPaymentStatus = "Pending";
+    let resolvedTransactionToken = "";
+
+    if (paymentDetails.method === "cod" || paymentDetails.method === "COD") {
+      resolvedPaymentMethod = "Cash on Delivery (COD)";
+      resolvedPaymentStatus = "Pending";
+      resolvedTransactionToken = paymentDetails.transactionToken || `COD-${Date.now()}`;
+    } else if (paymentDetails.razorpayPaymentId) {
+      resolvedPaymentStatus = "Paid";
+      resolvedTransactionToken = paymentDetails.razorpayPaymentId;
+      try {
+        const paymentInfo = await razorpay.payments.fetch(paymentDetails.razorpayPaymentId);
+        if (paymentInfo && paymentInfo.method) {
+          const methodType = paymentInfo.method;
+          if (methodType === "card" && paymentInfo.card) {
+            resolvedPaymentMethod = `${paymentInfo.card.network || "Credit/Debit"} Card (ending in ${paymentInfo.card.last4})`;
+          } else if (methodType === "upi") {
+            resolvedPaymentMethod = `UPI (${paymentInfo.vpa || "Paid via UPI"})`;
+          } else if (methodType === "netbanking") {
+            resolvedPaymentMethod = `Netbanking (${paymentInfo.bank || "Online Banking"})`;
+          } else if (methodType === "wallet") {
+            resolvedPaymentMethod = `Wallet (${paymentInfo.wallet || "Digital Wallet"})`;
+          } else {
+            resolvedPaymentMethod = `Razorpay (${methodType.toUpperCase()})`;
+          }
+        } else {
+          resolvedPaymentMethod = "Razorpay Secure Gateway";
+        }
+      } catch (err) {
+        console.error("Failed to fetch Razorpay details:", err);
+        resolvedPaymentMethod = "Razorpay Secure Gateway";
+      }
+    } else {
+      resolvedPaymentMethod = paymentDetails.method || "Online Payment";
+      resolvedPaymentStatus = "Pending";
+      resolvedTransactionToken = paymentDetails.transactionToken || "";
+    }
+
     // 6. Create the order with verified server calculations
     const order = await Order.create({
       user: req.user._id, // Set by protect middleware
@@ -122,10 +196,21 @@ export const createOrder = async (req, res) => {
         phone: shippingDetails.phone,
         method: shippingDetails.method,
       },
+      billingDetails: {
+        name: billingDetails?.name || shippingDetails.name,
+        address: {
+          street: billingDetails?.address?.street || shippingDetails.address?.street || "",
+          apartment: billingDetails?.address?.apartment || shippingDetails.address?.apartment || "",
+          city: billingDetails?.address?.city || shippingDetails.address?.city || "",
+          state: billingDetails?.address?.state || shippingDetails.address?.state || "",
+          zipCode: billingDetails?.address?.zipCode || shippingDetails.address?.zipCode || "",
+        },
+        phone: billingDetails?.phone || shippingDetails.phone,
+      },
       paymentDetails: {
-        paymentMethod: paymentDetails.method === "razorpay" ? "Razorpay" : (paymentDetails.method || "Card"),
-        paymentStatus: paymentDetails.razorpayPaymentId ? "Paid" : "Pending",
-        transactionToken: paymentDetails.razorpayPaymentId || ""
+        paymentMethod: resolvedPaymentMethod,
+        paymentStatus: resolvedPaymentStatus,
+        transactionToken: resolvedTransactionToken
       },
       pricingBreakdown: {
         subtotal: serverSubtotal,
@@ -426,8 +511,19 @@ export const createRazorpayOrder = async (req, res) => {
     const serverTotal = serverSubtotal - serverDiscount + serverShipping;
 
     // 5. Create Razorpay order (amount is in smallest currency unit, i.e., paise for INR)
+    const isDev = process.env.NODE_ENV === "development" || !process.env.NODE_ENV;
+    let finalAmount = serverTotal * 100;
+    
+    // Razorpay Test Mode has a strict transaction limit of ₹5,00,000 (5 Lakhs INR).
+    // In local development, if the order total exceeds this, we clamp it to ₹4,00,000 for the gateway, 
+    // while keeping the actual order records correct in MongoDB.
+    if (isDev && serverTotal > 400000) {
+      console.log(`[DEV MODE] Capping Razorpay payment amount of ₹${serverTotal} to ₹4,00,000 for test sandbox limits.`);
+      finalAmount = 400000 * 100;
+    }
+
     const options = {
-      amount: serverTotal * 100, // INR in Paise (e.g. ₹100 = 10000 Paise)
+      amount: finalAmount,
       currency: "INR",
       receipt: `receipt_order_${Date.now()}`
     };
@@ -448,6 +544,44 @@ export const createRazorpayOrder = async (req, res) => {
     });
   } catch (error) {
     console.error("Razorpay order creation error:", error);
-    res.status(500).json({ message: "Failed to create Razorpay order: " + error.message });
+    const detailMsg = error.error?.description || error.message || "Unknown Razorpay error";
+    res.status(500).json({ message: "Failed to create Razorpay order: " + detailMsg });
+  }
+};
+
+// @desc    Refund a cancelled or returned order (Admin Only)
+// @route   PUT /api/orders/:orderId/refund
+// @access  Protected/Admin
+export const refundOrder = async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderId: req.params.orderId });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found in registry." });
+    }
+
+    // Check if order is eligible for refund
+    if (order.status !== "Cancelled" && order.status !== "Returned") {
+      return res.status(400).json({
+        message: "Only Cancelled or Returned orders can be refunded by the atelier desk."
+      });
+    }
+
+    if (order.paymentDetails.paymentStatus === "Refunded") {
+      return res.status(400).json({ message: "This order has already been fully refunded." });
+    }
+
+    // Process refund state
+    order.paymentDetails.paymentStatus = "Refunded";
+    
+    // Track simulated refund transaction ID
+    const refundTxId = `ref_${Math.random().toString(36).substring(2, 11)}`;
+    order.paymentDetails.transactionToken = refundTxId;
+
+    const updatedOrder = await order.save();
+    res.status(200).json(updatedOrder);
+  } catch (error) {
+    console.error("Refund processing error:", error);
+    res.status(500).json({ message: "Failed to process order refund: " + error.message });
   }
 };

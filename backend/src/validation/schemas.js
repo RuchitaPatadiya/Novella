@@ -98,6 +98,29 @@ export const orderSchema = Joi.object({
     }),
     method: Joi.string().valid("standard", "express").required(),
   }).required(),
+  billingDetails: Joi.object({
+    name: Joi.string().required().messages({
+      "string.empty": "Billing name is required.",
+    }),
+    address: Joi.object({
+      street: Joi.string().required().messages({
+        "string.empty": "Billing street address is required.",
+      }),
+      apartment: Joi.string().allow("").optional(),
+      city: Joi.string().required().messages({
+        "string.empty": "Billing city is required.",
+      }),
+      state: Joi.string().required().messages({
+        "string.empty": "Billing state is required.",
+      }),
+      zipCode: Joi.string().required().messages({
+        "string.empty": "Billing ZIP/Postal code is required.",
+      }),
+    }).required(),
+    phone: Joi.string().required().messages({
+      "string.empty": "Billing phone number is required.",
+    }),
+  }).optional(),
   paymentDetails: Joi.object({
     method: Joi.string().allow("").optional(),
     razorpayPaymentId: Joi.string().allow("").optional(),

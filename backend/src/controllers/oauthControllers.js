@@ -1,6 +1,6 @@
 import User from "../models/User.js";
 import { OAuth2Client } from "google-auth-library";
-import { generateToken } from "./authControllers.js";
+import { generateToken, migrateLegacyAddress } from "./authControllers.js";
 
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -36,6 +36,9 @@ export const googleLogin = async (req, res) => {
     // 3. Generate secure cookie token
     generateToken(res, user._id);
 
+    // Auto-migrate legacy address if empty
+    const addressesList = await migrateLegacyAddress(user);
+
     // 4. Send back details
     res.status(200).json({
       id: user._id,
@@ -43,6 +46,7 @@ export const googleLogin = async (req, res) => {
       email: user.email,
       phone: user.phone,
       address: user.address,
+      addresses: addressesList,
       orders: user.orders,
       isAdmin: user.isAdmin,
       createdAt: user.createdAt.toLocaleDateString("en-US", {

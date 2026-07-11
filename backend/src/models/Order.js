@@ -53,9 +53,20 @@ const orderSchema = new mongoose.Schema(
       phone: { type: String, required: true },
       method: { type: String, required: true }, // e.g., "standard" or "express"
     },
+    billingDetails: {
+      name: { type: String, required: true },
+      address: {
+        street: { type: String, default: "" },
+        apartment: { type: String, default: "" },
+        city: { type: String, default: "" },
+        state: { type: String, default: "" },
+        zipCode: { type: String, default: "" },
+      },
+      phone: { type: String, required: true },
+    },
     paymentDetails: {
-      paymentMethod: { type: String, required: true, enum: ["Card", "UPI", "COD", "Razorpay"], default: "Razorpay" },
-      paymentStatus: { type: String, required: true, enum: ["Pending", "Paid"], default: "Paid" },
+      paymentMethod: { type: String, required: true, default: "Razorpay" },
+      paymentStatus: { type: String, required: true, enum: ["Pending", "Paid", "Refunded"], default: "Paid" },
       transactionToken: { type: String, default: "" },
     },
     pricingBreakdown: {

@@ -1,5 +1,6 @@
 import { useProducts } from "../../context/ProductContext";
 import ShopProductGrid from "../shop/Shopproductgrid";
+import AtelierHero from "../common/AtelierHero";
 
 const NewArrivals = () => {
   const { products, loading } = useProducts();
@@ -21,28 +22,17 @@ const NewArrivals = () => {
   return (
     <div className="bg-background">
       {/* Collection Hero */}
-      <section className="relative w-full h-[50vh] min-h-[350px] overflow-hidden flex items-center">
-        <img
-          src="https://images.unsplash.com/photo-1513506003901-1e6a35086e84?w=1600&q=80"
-          alt="New Arrivals Collection"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-dark/70" />
-        <div className="relative z-10 w-full px-[clamp(1.5rem,5vw,4rem)] text-left max-w-4xl">
-          <div className="flex items-center gap-2.5 mb-3.5">
-            <span className="block w-5 h-px bg-gold" />
-            <span className="font-body font-normal text-[0.58rem] text-gold tracking-[0.4em] uppercase">
-              Curated Collection
-            </span>
-          </div>
-          <h1 className="font-display font-light text-[clamp(2.2rem,4.5vw,4rem)] text-cream m-0 mb-3.5">
-            New <em className="text-gold italic font-medium">Arrivals</em>
-          </h1>
-          <p className="font-body font-light text-[clamp(0.85rem,1.1vw,1rem)] leading-relaxed text-cream-muted/75 max-w-2xl">
-            Just landed this season. Explore our latest curations of premium furniture, lighting, and textiles crafted for modern interiors.
-          </p>
-        </div>
-      </section>
+      <AtelierHero 
+        eyebrow="Fresh Additions"
+        title="New Arrivals"
+        subtitle="Just landed this season. Explore our latest curations of premium furniture, lighting, and textiles crafted for modern wabi-sabi interiors."
+        bottomText="↓ Discover New Arrivals ↓"
+        images={[
+          "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=400&q=80",
+          "https://images.unsplash.com/photo-1618220179428-22790b461013?w=400&q=80",
+          "https://images.unsplash.com/photo-1615876234886-fd9a39fda97f?w=400&q=80"
+        ]}
+      />
 
       {/* Philosophy Callout */}
       <section className="px-[clamp(1.5rem,5vw,4rem)] py-12 md:py-16 bg-surface border-b border-border">
