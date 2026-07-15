@@ -13,7 +13,7 @@ export const generateToken = (res, userId) => {
   res.cookie("token", token, {
     httpOnly: true, // Prevents browser JavaScript from reading the token (protects against XSS attacks)
     secure: process.env.NODE_ENV !== "development", // Uses secure HTTPS connections in production
-    sameSite: "strict", // Blocks cross-site request forgery (CSRF attacks)
+    sameSite: process.env.NODE_ENV === "development" ? "lax" : "none",
     maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days in milliseconds
   });
 };
@@ -146,7 +146,7 @@ export const logoutUser = (req, res) => {
     httpOnly: true,
     expires: new Date(0), // Set cookie expiry to the past, clearing it instantly
     secure: process.env.NODE_ENV !== "development", // Uses secure HTTPS connections in production
-    sameSite: "strict", // Blocks cross-site request forgery (CSRF attacks)
+    sameSite: process.env.NODE_ENV === "development" ? "lax" : "none",
   });
   res.status(200).json({ message: "Logged out successfully." });
 };
