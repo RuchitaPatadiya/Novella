@@ -6,24 +6,9 @@ import ShopFilterBar   from "../../components/shop/ShopFilterBar";
 import ShopProductGrid from "../../components/shop/Shopproductgrid";
 import BrandStrip      from "../../components/home/BrandStrip";
 import { useProducts } from "../../context/ProductContext";
+import API from "../../services/api";
 
-// Helper to determine highly specialized product type by matching name keywords
-const getProductType = (name) => {
-  const n = name.toLowerCase();
-  if (n.includes("sofa")) return "sofa";
-  if (n.includes("coffee table")) return "coffee-table";
-  if (n.includes("side table")) return "side-table";
-  if (n.includes("credenza")) return "credenza";
-  if (n.includes("table lamp")) return "table-lamp";
-  if (n.includes("pendant")) return "pendant-light";
-  if (n.includes("sconce")) return "wall-sconce";
-  if (n.includes("urn") || n.includes("vase")) return "vase";
-  if (n.includes("mirror")) return "mirror";
-  if (n.includes("art") || n.includes("canvas")) return "art";
-  if (n.includes("throw") || n.includes("rug")) return "textiles";
-  if (n.includes("organizer") || n.includes("set")) return "organizer";
-  return "other";
-};
+
 
 const ShopPage = () => {
   const { products: allProducts, loading } = useProducts();
@@ -42,16 +27,16 @@ const ShopPage = () => {
     excludeColor: aiExcludeColor || null
   } : null;
   const categoryFromUrl = searchParams.get("category");
-  const validCategories = ["all", "furniture", "lighting", "wall-decor", "textiles", "decor-accessories"];
-  const initialCategory = validCategories.includes(categoryFromUrl) ? categoryFromUrl : "all";
 
   // Category and Type Filters
-  const [activeCategory, setActiveCategory] = useState(initialCategory);
+  const [activeCategory, setActiveCategory] = useState(categoryFromUrl || "all");
   const [activeType, setActiveType] = useState("all");
 
   // Advanced filters
   const [selectedSpaces, setSelectedSpaces] = useState([]);
   const [selectedCollections, setSelectedCollections] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [collections, setCollections] = useState([]);
   
   const [sortBy, setSortBy] = useState("bestsellers");
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -59,9 +44,23 @@ const ShopPage = () => {
   const productRef = useRef(null);
 
   useEffect(() => {
-    if (validCategories.includes(categoryFromUrl)) {
-      setActiveCategory(categoryFromUrl);
-    }
+    const fetchFilters = async () => {
+      try {
+        const [catRes, collRes] = await Promise.all([
+          API.get("/categories"),
+          API.get("/collections")
+        ]);
+        setCategories(catRes.data);
+        setCollections(collRes.data);
+      } catch (err) {
+        console.error("Failed to load shop categories/collections:", err);
+      }
+    };
+    fetchFilters();
+  }, []);
+
+  useEffect(() => {
+    setActiveCategory(categoryFromUrl || "all");
   }, [categoryFromUrl]);
 
   if (loading) {
@@ -82,7 +81,7 @@ const ShopPage = () => {
 
   // 2. Filter by subcategory circle type
   if (activeType !== "all") {
-    filteredProducts = filteredProducts.filter(p => getProductType(p.name) === activeType);
+    filteredProducts = filteredProducts.filter(p => p.subcategory === activeType);
   }
 
   // 3. Filter by selected Spaces
@@ -202,6 +201,7 @@ const ShopPage = () => {
 
       {/* Dynamic Circle Type Horizontal Scroll selector */}
       <ShopCategories
+        activeCategory={activeCategory}
         activeType={activeType}
         onSelect={handleTypeSelect}
       />
@@ -210,6 +210,8 @@ const ShopPage = () => {
         
         {/* Advanced Filters Panel */}
         <ShopFilterBar
+          categories={categories}
+          collections={collections}
           activeCategory={activeCategory}
           onCategoryChange={handleCategorySelect}
           sortBy={sortBy}

@@ -2,10 +2,11 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useProducts } from "../../context/ProductContext";
 import ProductCard from "../common/ProductCard";
+import API from "../../services/api";
 
 const trendingSearches = ["Sofa", "Travertine", "Pendant", "Armchair", "Linen", "Vase"];
 
-const categoriesList = [
+const defaultCategories = [
   { name: "Furniture",         to: "/shop/furniture"          },
   { name: "Lighting",          to: "/shop/lighting"           },
   { name: "Wall Decor",        to: "/shop/wall-decor"         },
@@ -17,6 +18,24 @@ export default function SearchOverlay({ isOpen, onClose }) {
   const [query, setQuery] = useState("");
   const { products } = useProducts();
   const inputRef = useRef(null);
+  const [dbCategories, setDbCategories] = useState([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const fetchCats = async () => {
+      try {
+        const res = await API.get("/categories");
+        setDbCategories(res.data);
+      } catch (err) {
+        console.error("Failed to load categories for search overlay:", err);
+      }
+    };
+    fetchCats();
+  }, [isOpen]);
+
+  const displayCategories = dbCategories.length > 0
+    ? dbCategories.map(cat => ({ name: cat.name, to: `/shop/${cat.slug}` }))
+    : defaultCategories;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -134,7 +153,7 @@ export default function SearchOverlay({ isOpen, onClose }) {
                   Browse Categories
                 </p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-0">
-                  {categoriesList.map((cat, i) => (
+                  {displayCategories.map((cat, i) => (
                     <Link
                       key={cat.name}
                       to={cat.to}

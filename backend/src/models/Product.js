@@ -18,6 +18,12 @@ const productSchema = new mongoose.Schema(
       lowercase: true,
       index: true,
     },
+    subcategory: {
+      type: String,
+      lowercase: true,
+      index: true,
+      default: "",
+    },
     price: {
       type: Number,
       required: [true, "Product price is required"],

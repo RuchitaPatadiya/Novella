@@ -1,56 +1,42 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useProducts } from "../../context/ProductContext";
 import { useCart } from "../../context/CartContext";
 import { useWishlist } from "../../context/WishlistContext";
-
-const hotspotsTemplate = [
-  {
-    id: "sofa",
-    top: "70%",
-    left: "55%",
-    matchName: "Sofa",
-    displayName: "Curved Sofa",
-    fallback: { name: "Atelier Curved Bouclé Sofa", price: 68000, image: "https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?q=80&w=400" },
-  },
-  {
-    id: "pendant",
-    top: "16%",
-    left: "50%",
-    matchName: "Pendant",
-    displayName: "Arc Pendant",
-    fallback: { name: "Nouveau Plaster Arc Pendant", price: 14500, image: "https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=400" },
-  },
-  {
-    id: "table",
-    top: "84%",
-    left: "41%",
-    matchName: "Table",
-    displayName: "Travertine Table",
-    fallback: { name: "Pillar Travertine Coffee Table", price: 32000, image: "https://media.istockphoto.com/id/2235412216/photo/warm-and-inviting-boho-scandinavian-living-room-with-textured-sofas-and-wooden-accents-3d.jpg?w=400" },
-  },
-  {
-    id: "canvas",
-    top: "52%",
-    left: "21%",
-    matchName: "Canvas",
-    displayName: "Canvas Art",
-    fallback: { name: "Abstract Earth Canvas Art", price: 12500, image: "https://images.unsplash.com/photo-1579783902614-a3fb3927b6a5?w=400" },
-  },
-];
+import API from "../../services/api";
 
 export default function ShopTheLook() {
-  const { products, loading } = useProducts();
+  const { products, loading: productsLoading } = useProducts();
   const { addToCart } = useCart();
   const { toggleWishlist, isInWishlist } = useWishlist();
-  
-  const [activeSpot, setActiveSpot] = useState("sofa");
+
+  const [cmsData, setCmsData] = useState(null);
+  const [cmsLoading, setCmsLoading] = useState(true);
+  const [activeSpot, setActiveSpot] = useState("");
   const [addingId, setAddingId] = useState(null);
 
-  const hotspots = hotspotsTemplate.map((spot) => {
-    const liveProd = products.find((p) =>
-      p.name.toLowerCase().includes(spot.matchName.toLowerCase())
-    );
+  useEffect(() => {
+    const fetchCmsData = async () => {
+      try {
+        const res = await API.get("/cms/shop_the_look");
+        setCmsData(res.data);
+        if (res.data?.hotspots?.length > 0) {
+          setActiveSpot(res.data.hotspots[0].id);
+        }
+      } catch (error) {
+        console.error("Failed to load Shop the Look CMS data:", error);
+      } finally {
+        setCmsLoading(false);
+      }
+    };
+    fetchCmsData();
+  }, []);
+
+  if (productsLoading || cmsLoading || !cmsData) return null;
+
+  // Map hotspots to live products in database
+  const hotspots = (cmsData.hotspots || []).map((spot) => {
+    const liveProd = products.find((p) => String(p.id) === String(spot.productId));
     const resolvedProduct = liveProd || { ...spot.fallback, id: spot.id };
     return {
       ...spot,
@@ -69,8 +55,6 @@ export default function ShopTheLook() {
     }, 1200);
   };
 
-  if (loading) return null;
-
   return (
     <section className="bg-background py-20 md:py-24 border-b border-border/40">
       <div className="px-[clamp(1.5rem,5vw,4rem)] max-w-7xl mx-auto">
@@ -85,12 +69,15 @@ export default function ShopTheLook() {
               </span>
             </div>
             <h2 className="font-display font-light text-[clamp(1.8rem,3.5vw,2.8rem)] text-ink m-0 leading-[1.1]">
-              Shop the <em className="text-bronze font-medium italic">Look</em>
+              {cmsData.title || "Shop the"}{" "}
+              <em className="text-bronze font-medium italic">
+                {cmsData.title?.toLowerCase().includes("look") ? "" : "Look"}
+              </em>
             </h2>
           </div>
           
           <p className="font-body font-light text-[0.8rem] text-muted max-w-xs leading-relaxed m-0">
-            Click on the interactive pulse points on the design setup to view and shop featured furniture pieces instantly.
+            {cmsData.subtitle || "Click on the interactive pulse points on the design setup to view and shop featured furniture pieces instantly."}
           </p>
         </div>
 
@@ -100,8 +87,8 @@ export default function ShopTheLook() {
           {/* Left Side: Room Hotspots Canvas (8 Columns) */}
           <div className="lg:col-span-8 relative w-full aspect-[4/3] rounded-[24px] overflow-hidden border border-border/50 shadow-sm shrink-0 bg-surface">
             <img
-              src="https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1400&q=85"
-              alt="Wabi Sabi styled living room setup"
+              src={cmsData.image || "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1400&q=85"}
+              alt="Wabi Sabi styled interior setup"
               className="absolute inset-0 w-full h-full object-cover brightness-[0.96]"
             />
 
@@ -248,10 +235,10 @@ export default function ShopTheLook() {
               {/* Bottom CTA Full Room Link */}
               <div className="mt-8 pt-5 border-t border-border/40">
                 <Link
-                  to="/shop"
+                  to={cmsData.buttonLink || "/shop"}
                   className="no-underline w-full text-center block font-body font-medium text-[0.62rem] tracking-[0.2em] uppercase text-background bg-ink py-3.5 rounded-xl transition-all duration-300 hover:bg-bronze hover:text-white"
                 >
-                  Shop Full Living Room
+                  {cmsData.buttonText || "Shop Full Space"}
                 </Link>
               </div>
 

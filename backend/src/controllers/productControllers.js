@@ -66,6 +66,7 @@ export const createProduct = async (req, res) => {
   const {
     name,
     category,
+    subcategory,
     price,
     originalPrice,
     stock,
@@ -87,6 +88,7 @@ export const createProduct = async (req, res) => {
       id: nextId,
       name,
       category,
+      subcategory: subcategory || "",
       price,
       originalPrice: originalPrice || null,
       stock: stock !== undefined ? Number(stock) : 10,
@@ -202,6 +204,7 @@ export const updateProduct = async (req, res) => {
     if (product) {
       product.name = req.body.name || product.name;
       product.category = req.body.category || product.category;
+      product.subcategory = req.body.subcategory !== undefined ? req.body.subcategory : product.subcategory;
       product.price = req.body.price !== undefined ? Number(req.body.price) : product.price;
       product.originalPrice = req.body.originalPrice !== undefined ? (req.body.originalPrice ? Number(req.body.originalPrice) : null) : product.originalPrice;
       product.stock = req.body.stock !== undefined ? Number(req.body.stock) : product.stock;

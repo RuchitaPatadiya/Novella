@@ -122,7 +122,7 @@ export default function QuickHelpCards() {
     }
 
     try {
-      const res = await API.get(`/orders/${trackOrderId.trim()}`);
+      const res = await API.get(`/orders/track/${trackOrderId.trim()}`);
       setTrackResult(res.data);
     } catch (err) {
       setTrackError(err.response?.data?.message || "Order not found. Please log in and verify your Reference Order ID.");

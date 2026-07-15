@@ -15,9 +15,8 @@ const BohoChic = () => {
     );
   }
 
-  const collectionIds = [5, 6, 7, 9]; // Rattan Mirror, Ceramic Vases, Linen Throw, Jute Rug
   const filteredProducts = products.filter(
-    (p) => collectionIds.includes(p.id) || (p.collections && p.collections.includes("boho-chic"))
+    (p) => p.collections && p.collections.includes("boho-chic")
   );
 
   return (

@@ -119,7 +119,7 @@ export default function StyleQuizBanner() {
 
           <div className="relative h-[320px] lg:h-auto lg:min-h-[480px] overflow-hidden">
             <img
-              src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb3?w=1400&q=85"
+              src="https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=1200&q=85"
               alt="Style Quiz"
               className="absolute inset-0 w-full h-full object-cover object-center brightness-[0.92] saturate-[0.95]"
             />

@@ -585,3 +585,33 @@ export const refundOrder = async (req, res) => {
     res.status(500).json({ message: "Failed to process order refund: " + error.message });
   }
 };
+
+// @desc    Track order publicly (Sanitized payload, no authentication required)
+// @route   GET /api/orders/track/:orderId
+// @access  Public
+export const trackOrderPublicly = async (req, res) => {
+  try {
+    const order = await Order.findOne({ orderId: req.params.orderId });
+
+    if (!order) {
+      return res.status(404).json({ message: "Order not found." });
+    }
+
+    // Return only public, non-PII details for tracking
+    const sanitizedOrder = {
+      orderId: order.orderId,
+      status: order.status,
+      items: order.products.map(p => ({
+        name: p.name,
+        quantity: p.quantity,
+        price: p.price
+      })),
+      totalAmount: order.pricingBreakdown?.total || 0,
+      createdAt: order.createdAt
+    };
+
+    res.status(200).json(sanitizedOrder);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to track order: " + error.message });
+  }
+};

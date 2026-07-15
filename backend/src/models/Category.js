@@ -19,6 +19,10 @@ const categorySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    navbarDescription: {
+      type: String,
+      default: "",
+    },
     heroImage: {
       type: String,
       default: "",

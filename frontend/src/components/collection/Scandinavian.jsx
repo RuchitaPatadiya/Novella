@@ -15,9 +15,8 @@ const Scandinavian = () => {
     );
   }
 
-  const collectionIds = [2, 3, 4, 7, 11]; // Sofa, Travertine Table, Boucle Chair, Linen Throw, Oakwood Dining Table
   const filteredProducts = products.filter(
-    (p) => collectionIds.includes(p.id) || (p.collections && p.collections.includes("scandinavian"))
+    (p) => p.collections && p.collections.includes("scandinavian")
   );
 
   return (

@@ -1,4 +1,7 @@
-const stats = [
+import { useEffect, useState } from "react";
+import API from "../../services/api";
+
+const fallbackStats = [
   {
     number: "2,400+",
     label: "Original Designs",
@@ -22,6 +25,22 @@ const stats = [
 ];
 
 export default function TheNumbers() {
+  const [stats, setStats] = useState(fallbackStats);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // Fetch live-computed stats from the database
+        const res = await API.get("/analytics/public-stats");
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          setStats(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load live stats, using fallback:", err);
+      }
+    };
+    fetchStats();
+  }, []);
   return (
     <section className="bg-background py-20 px-[clamp(2rem,8vw,6rem)] border-t border-border">
       <div className="max-w-6xl mx-auto">

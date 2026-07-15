@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import API from "../../services/api";
 
-const collections = [
+const defaultCollections = [
   {
     id: 1,
     name: "Modern Minimalist",
@@ -118,6 +119,42 @@ const CollectionCard = ({ col }) => {
 };
 
 export default function CollectionsGrid() {
+  const [dbCollections, setDbCollections] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const getCollections = async () => {
+      try {
+        const res = await API.get("/collections");
+        setDbCollections(res.data);
+      } catch (err) {
+        console.error("Failed to load grid collections:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    getCollections();
+  }, []);
+
+  const displayCollections = dbCollections.length > 0
+    ? dbCollections.map((col, idx) => ({
+        id: idx + 1,
+        name: col.name,
+        tagline: col.tagline || "",
+        count: "View Collection",
+        to: `/collections/${col.slug}`,
+        image: col.image || "https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=900&q=85",
+      }))
+    : defaultCollections;
+
+  if (loading) {
+    return (
+      <div className="bg-surface py-20 px-[clamp(1.5rem,5vw,4rem)] text-center font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+        Loading Curated Worlds...
+      </div>
+    );
+  }
+
   return (
     <section
       id="collections-grid"
@@ -132,7 +169,7 @@ export default function CollectionsGrid() {
             </span>
           </div>
           <h2 className="font-display font-light text-[clamp(2rem,4vw,3.2rem)] text-ink m-0 leading-[1.1]">
-            Six Curated{" "}
+            {displayCollections.length} Curated{" "}
             <em className="text-bronze font-medium italic">Worlds</em>
           </h2>
         </div>
@@ -145,7 +182,7 @@ export default function CollectionsGrid() {
       <div className="h-px mb-10 bg-gradient-to-r from-bronze/40 to-transparent" />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {collections.map((col) => (
+        {displayCollections.map((col) => (
           <div key={col.id} className="relative h-[320px] sm:h-[350px] md:h-[380px] lg:h-[400px]">
             <CollectionCard col={col} />
           </div>

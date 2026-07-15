@@ -38,7 +38,7 @@ router.get("/:slug", async (req, res) => {
 // @access  Admin
 router.post("/", protect, admin, async (req, res) => {
   try {
-    const { slug, name, tagline, image, order, isActive } = req.body;
+    const { slug, name, tagline, navbarDescription, image, order, isActive } = req.body;
 
     const exists = await Collection.findOne({ slug });
     if (exists) {
@@ -49,6 +49,7 @@ router.post("/", protect, admin, async (req, res) => {
       slug,
       name,
       tagline: tagline || "",
+      navbarDescription: navbarDescription || "",
       image: image || "",
       order: order ?? 0,
       isActive: isActive !== false,
@@ -70,7 +71,7 @@ router.put("/:slug", protect, admin, async (req, res) => {
       return res.status(404).json({ message: "Collection not found" });
     }
 
-    const { name, tagline, image, order, isActive, slug: newSlug } = req.body;
+    const { name, tagline, navbarDescription, image, order, isActive, slug: newSlug } = req.body;
 
     if (newSlug && newSlug !== collection.slug) {
       const slugExists = await Collection.findOne({ slug: newSlug });
@@ -82,6 +83,7 @@ router.put("/:slug", protect, admin, async (req, res) => {
 
     if (name !== undefined) collection.name = name;
     if (tagline !== undefined) collection.tagline = tagline;
+    if (navbarDescription !== undefined) collection.navbarDescription = navbarDescription;
     if (image !== undefined) collection.image = image;
     if (order !== undefined) collection.order = order;
     if (isActive !== undefined) collection.isActive = isActive;

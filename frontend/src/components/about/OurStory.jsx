@@ -1,4 +1,7 @@
-const milestones = [
+import { useEffect, useState } from "react";
+import API from "../../services/api";
+
+const fallbackMilestones = [
   { year: "2024", event: "Novella Founded",        desc: "A design studio built on the belief that beauty belongs in every home."     },
   { year: "2024", event: "First Collection",       desc: "Our debut edit of 100 original pieces — each designed in-house."            },
   { year: "2025", event: "12,000+ Happy Homes",    desc: "Our designs found their way into homes across India and beyond."            },
@@ -6,6 +9,21 @@ const milestones = [
 ];
 
 export default function OurStory() {
+  const [milestones, setMilestones] = useState(fallbackMilestones);
+
+  useEffect(() => {
+    const fetchMilestones = async () => {
+      try {
+        const res = await API.get("/cms/about_milestones");
+        if (res.data && Array.isArray(res.data)) {
+          setMilestones(res.data);
+        }
+      } catch (err) {
+        console.error("Failed to load CMS milestones:", err);
+      }
+    };
+    fetchMilestones();
+  }, []);
   return (
     <section id="our-story" className="bg-background">
 

@@ -38,7 +38,7 @@ router.get("/:slug", async (req, res) => {
 // @access  Admin
 router.post("/", protect, admin, async (req, res) => {
   try {
-    const { slug, name, description, heroImage, order, isActive } = req.body;
+    const { slug, name, description, navbarDescription, heroImage, order, isActive } = req.body;
 
     const exists = await Category.findOne({ slug });
     if (exists) {
@@ -49,6 +49,7 @@ router.post("/", protect, admin, async (req, res) => {
       slug,
       name,
       description: description || "",
+      navbarDescription: navbarDescription || "",
       heroImage: heroImage || "",
       order: order ?? 0,
       isActive: isActive !== false,
@@ -70,7 +71,7 @@ router.put("/:slug", protect, admin, async (req, res) => {
       return res.status(404).json({ message: "Category not found" });
     }
 
-    const { name, description, heroImage, order, isActive, slug: newSlug } = req.body;
+    const { name, description, navbarDescription, heroImage, order, isActive, slug: newSlug } = req.body;
 
     if (newSlug && newSlug !== category.slug) {
       const slugExists = await Category.findOne({ slug: newSlug });
@@ -82,6 +83,7 @@ router.put("/:slug", protect, admin, async (req, res) => {
 
     if (name !== undefined) category.name = name;
     if (description !== undefined) category.description = description;
+    if (navbarDescription !== undefined) category.navbarDescription = navbarDescription;
     if (heroImage !== undefined) category.heroImage = heroImage;
     if (order !== undefined) category.order = order;
     if (isActive !== undefined) category.isActive = isActive;

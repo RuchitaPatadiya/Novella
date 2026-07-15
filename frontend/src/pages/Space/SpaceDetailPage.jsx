@@ -47,12 +47,17 @@ const SpaceDetailPage = () => {
 
   // Filter products that match the productIds list for this space or belong to the spaceId dynamically
   const curatedProducts = products.filter(
-    (p) => space.productIds.includes(p.id) || (p.spaces && p.spaces.includes(spaceId))
+    (p) => p.spaces && p.spaces.includes(spaceId)
   );
 
-  const galleryImages = curatedProducts.length >= 3 
-    ? curatedProducts.slice(0, 3).map(p => p.images?.[0] || p.image) 
-    : [space.heroImage, space.heroImage, space.heroImage];
+  // Gallery images for AtelierHero: use product images first, then fill remaining slots with the space hero image
+  const galleryImages = [];
+  curatedProducts.slice(0, 3).forEach((p) => {
+    galleryImages.push(p.images?.[0] || p.image);
+  });
+  while (galleryImages.length < 3) {
+    galleryImages.push(space.heroImage);
+  }
 
   const fadeUp = (delay) => ({
     opacity: visible ? 1 : 0,

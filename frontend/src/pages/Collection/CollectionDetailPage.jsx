@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import ModernMinimalist from "../../components/collection/ModernMinimalist";
 import LuxuryLiving from "../../components/collection/LuxuryLiving";
@@ -7,6 +7,10 @@ import BohoChic from "../../components/collection/BohoChic";
 import NewArrivals from "../../components/collection/NewArrivals";
 import BestSellers from "../../components/collection/BestSellers";
 import BrandStrip from "../../components/home/BrandStrip";
+import ShopProductGrid from "../../components/shop/Shopproductgrid";
+import { useProducts } from "../../context/ProductContext";
+import API from "../../services/api";
+import AtelierHero from "../../components/common/AtelierHero";
 
 // Mapping collectionId to its respective component
 const collectionComponents = {
@@ -30,14 +34,47 @@ const collectionTitles = {
 
 const CollectionDetailPage = () => {
   const { collectionId } = useParams();
-  const SelectedCollectionComponent = collectionComponents[collectionId];
-  const title = collectionTitles[collectionId];
+  const { products, loading: productsLoading } = useProducts();
+  const [collectionInfo, setCollectionInfo] = useState(null);
+  const [loadingCollection, setLoadingCollection] = useState(true);
 
   useEffect(() => {
     window.scrollTo(0, 0);
+
+    if (collectionComponents[collectionId]) {
+      setCollectionInfo({
+        name: collectionTitles[collectionId] || collectionId.replace("-", " "),
+        tagline: "Curated Collection",
+        image: ""
+      });
+      setLoadingCollection(false);
+      return;
+    }
+
+    const fetchCollection = async () => {
+      try {
+        setLoadingCollection(true);
+        const res = await API.get(`/collections/${collectionId}`);
+        setCollectionInfo(res.data);
+      } catch (err) {
+        console.error("Failed to load collection details:", err);
+        setCollectionInfo(null);
+      } finally {
+        setLoadingCollection(false);
+      }
+    };
+    fetchCollection();
   }, [collectionId]);
 
-  if (!SelectedCollectionComponent) {
+  if (loadingCollection || productsLoading) {
+    return (
+      <div className="bg-background min-h-screen pt-32 flex items-center justify-center font-body text-[0.62rem] text-muted tracking-[0.2em] uppercase animate-pulse">
+        Loading Collection...
+      </div>
+    );
+  }
+
+  if (!collectionInfo) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 pt-20">
         <h2 className="font-display font-light text-4xl text-ink mb-4">Collection Not Found</h2>
@@ -53,6 +90,22 @@ const CollectionDetailPage = () => {
     );
   }
 
+  // Filter products by collection
+  const filteredProducts = products.filter(
+    (p) => p.collections && p.collections.includes(collectionId)
+  );
+
+  // Gallery images for AtelierHero: use product images first, then fill remaining slots with the collection hero image
+  const collectionGalleryImages = [];
+  filteredProducts.slice(0, 3).forEach((p) => {
+    collectionGalleryImages.push(p.images?.[0] || p.image);
+  });
+  while (collectionGalleryImages.length < 3) {
+    collectionGalleryImages.push(collectionInfo.image || "https://images.unsplash.com/photo-1533090161767-e6ffed986c88?w=400&q=80");
+  }
+
+  const SelectedCollectionComponent = collectionComponents[collectionId];
+
   return (
     <div className="bg-background min-h-screen pt-[76px]">
       {/* Breadcrumbs Row */}
@@ -66,12 +119,37 @@ const CollectionDetailPage = () => {
             Collections
           </Link>
           <span>/</span>
-          <span className="text-ink font-normal">{title}</span>
+          <span className="text-ink font-normal">{collectionInfo.name}</span>
         </div>
       </div>
 
-      {/* Render mapped collection view */}
-      <SelectedCollectionComponent />
+      {SelectedCollectionComponent ? (
+        <SelectedCollectionComponent />
+      ) : (
+        <>
+          {/* Generic Collection Hero */}
+          <AtelierHero 
+            eyebrow="Curated Collection"
+            title={collectionInfo.name}
+            subtitle={collectionInfo.tagline}
+            bottomText="↓ Discover Catalog ↓"
+            images={collectionGalleryImages}
+          />
+
+          {/* Collection Product Grid */}
+          <div className="px-[clamp(1.5rem,5vw,4rem)] pt-12 pb-16 bg-background">
+            <div className="flex items-center justify-between mb-8 pb-4 border-b border-border/50">
+              <span className="font-body text-[0.62rem] uppercase tracking-wider text-muted">
+                {filteredProducts.length} pieces in this collection
+              </span>
+            </div>
+            <ShopProductGrid
+              products={filteredProducts}
+              onClearFilters={() => {}}
+            />
+          </div>
+        </>
+      )}
 
       <BrandStrip />
     </div>

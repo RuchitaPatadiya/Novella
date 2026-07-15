@@ -15,6 +15,8 @@ import assistantRoutes from "./routes/assistantRoutes.js";
 import cmsRoutes from "./routes/cmsRoutes.js";
 import categoryRoutes from "./routes/categoryRoutes.js";
 import collectionRoutes from "./routes/collectionRoutes.js";
+import subcategoryRoutes from "./routes/subcategoryRoutes.js";
+import showcaseRoutes from "./routes/showcaseRoutes.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -22,7 +24,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 
 // Secure HTTP headers via Helmet (CSP disabled to support Unsplash image loads)
-app.use(helmet({ contentSecurityPolicy: false }));
+app.use(helmet({ 
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false }));
 
 // Configure CORS to allow secure cross-origin requests
 app.use(
@@ -47,7 +51,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 // Serve static uploads
-app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+app.use("/uploads", express.static(path.join(__dirname, "../../uploads")));
 
 // Base API health check route
 app.get("/", (req, res) => {
@@ -107,5 +111,9 @@ app.use("/api/categories", categoryRoutes);
 
 // Register the Collection routes under /api/collections
 app.use("/api/collections", collectionRoutes);
+
+// Register the Subcategory routes under /api/subcategories
+app.use("/api/subcategories", subcategoryRoutes);
+app.use("/api/showcases", showcaseRoutes);
 
 export default app;

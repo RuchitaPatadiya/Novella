@@ -1,41 +1,41 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-
-const customerShowcases = [
-  {
-    id: 1,
-    handle: "@jules_minimalist",
-    image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=600&q=80",
-    space: "Bedroom Suite",
-    productName: "Linen Duvet Set",
-    productId: "4",
-  },
-  {
-    id: 2,
-    handle: "@atelier_stone",
-    image: "https://images.unsplash.com/photo-1616486029423-aaa4789e8c9a?w=600&q=80",
-    space: "Living Corner",
-    productName: "Travertine Coffee Table",
-    productId: "3",
-  },
-  {
-    id: 3,
-    handle: "@warm_interiors",
-    image: "https://images.unsplash.com/photo-1615066390971-03e4e1c36ddf?w=600&q=80",
-    space: "Dining Nook",
-    productName: "Travertine Board",
-    productId: "6", // Fallback to shop
-  },
-  {
-    id: 4,
-    handle: "@clay_studio",
-    image: "https://images.unsplash.com/photo-1606744824163-985d376605aa?w=600&q=80",
-    space: "Console Shelf",
-    productName: "Plaster Vase",
-    productId: "2",
-  },
-];
+import API from "../../services/api";
 
 export default function StyledByYou() {
+  const [showcases, setShowcases] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchShowcases = async () => {
+      try {
+        const res = await API.get("/showcases");
+        setShowcases(res.data);
+      } catch (error) {
+        console.error("Failed to fetch showcases:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchShowcases();
+  }, []);
+
+  if (loading) {
+    return (
+      <section className="bg-background py-20 md:py-24 border-b border-border/40">
+        <div className="px-[clamp(1.5rem,5vw,4rem)] flex items-center justify-center min-h-[300px]">
+          <span className="font-body text-xs text-muted tracking-widest uppercase animate-pulse">
+            Loading community gallery...
+          </span>
+        </div>
+      </section>
+    );
+  }
+
+  if (showcases.length === 0) {
+    return null; // Don't render section if empty
+  }
+
   return (
     <section className="bg-background py-20 md:py-24 border-b border-border/40">
       <div className="px-[clamp(1.5rem,5vw,4rem)]">
@@ -59,12 +59,12 @@ export default function StyledByYou() {
           </p>
         </div>
 
-        {/* Asymmetrical Masonry-Style Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {customerShowcases.map((item) => (
+        {/* Horizontal Scrollable Gallery */}
+        <div className="flex gap-6 overflow-x-auto pb-6 snap-x snap-mandatory scroll-smooth -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-none">
+          {showcases.map((item) => (
             <div
-              key={item.id}
-              className="group relative overflow-hidden aspect-[4/5] rounded-[22px] border border-border/50 bg-surface shadow-sm hover:shadow-md transition-all duration-500"
+              key={item._id || item.id}
+              className="group relative flex-shrink-0 w-[280px] sm:w-[320px] md:w-[350px] overflow-hidden aspect-[4/5] rounded-[22px] border border-border/50 bg-surface shadow-sm hover:shadow-md transition-all duration-500 snap-start"
             >
               {/* Image backdrop */}
               <img

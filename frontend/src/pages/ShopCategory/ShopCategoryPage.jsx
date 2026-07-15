@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { categoriesData } from "../../utils/categoryData";
 import { useProducts } from "../../context/ProductContext";
 import ShopProductGrid from "../../components/shop/Shopproductgrid";
 import BrandStrip from "../../components/home/BrandStrip";
 import { ProductCardSkeleton } from "../../components/common/Skeleton";
+import API from "../../services/api";
+import AtelierHero from "../../components/common/AtelierHero";
 
 const ShopCategoryPage = () => {
   const { categoryId } = useParams();
   const { products, loading } = useProducts();
-  const categoryInfo = categoriesData.find((c) => c.id === categoryId);
+  const [categoryInfo, setCategoryInfo] = useState(null);
+  const [catLoading, setCatLoading] = useState(true);
 
   // States for filter and sort
   const [sortBy, setSortBy] = useState("bestsellers");
@@ -17,14 +19,35 @@ const ShopCategoryPage = () => {
   const [priceRange, setPriceRange] = useState([0, 60000]);
   const productRef = useRef(null);
 
-  // Reset filter states when category changes
+  // Reset filter states and fetch category info when category changes
   useEffect(() => {
     window.scrollTo(0, 0);
     setSortBy("bestsellers");
     setFiltersOpen(false);
     setPriceRange([0, 60000]);
+
+    const fetchCategory = async () => {
+      try {
+        setCatLoading(true);
+        const res = await API.get(`/categories/${categoryId}`);
+        setCategoryInfo(res.data);
+      } catch (err) {
+        console.error("Failed to load category info:", err);
+        setCategoryInfo(null);
+      } finally {
+        setCatLoading(false);
+      }
+    };
+    fetchCategory();
   }, [categoryId]);
 
+  if (loading || catLoading) {
+    return (
+      <div className="bg-background min-h-screen pt-32 flex items-center justify-center font-body text-[0.62rem] text-muted tracking-[0.2em] uppercase animate-pulse">
+        Loading Category...
+      </div>
+    );
+  }
 
   if (!categoryInfo) {
     return (
@@ -44,6 +67,15 @@ const ShopCategoryPage = () => {
 
   // Filter products by category
   let filteredProducts = products.filter((p) => p.category === categoryId);
+
+  // Gallery images for AtelierHero: use product images first, then fill remaining slots with the category hero image
+  const categoryGalleryImages = [];
+  filteredProducts.slice(0, 3).forEach((p) => {
+    categoryGalleryImages.push(p.images?.[0] || p.image);
+  });
+  while (categoryGalleryImages.length < 3) {
+    categoryGalleryImages.push(categoryInfo.heroImage);
+  }
 
   // Sort
   if (sortBy === "price-asc") {
@@ -87,29 +119,13 @@ const ShopCategoryPage = () => {
       </div>
 
       {/* Category Hero */}
-      <section className="relative w-full h-[40vh] min-h-[300px] overflow-hidden flex items-center">
-        <img
-          src={categoryInfo.heroImage}
-          alt={categoryInfo.name}
-          className="absolute inset-0 w-full h-full object-cover object-[center_35%]"
-        />
-        <div className="absolute inset-0 bg-dark/75" />
-
-        <div className="relative z-10 w-full px-[clamp(1.5rem,5vw,4rem)] text-left max-w-3xl">
-          <div className="flex items-center gap-2.5 mb-3.5">
-            <span className="block w-5 h-px bg-gold" />
-            <span className="font-body font-normal text-[0.58rem] text-gold tracking-[0.4em] uppercase">
-              Shop / Category
-            </span>
-          </div>
-          <h1 className="font-display font-light text-[clamp(2.2rem,4vw,3.8rem)] text-cream m-0 mb-3.5">
-            {categoryInfo.name}
-          </h1>
-          <p className="font-body font-light text-[clamp(0.85rem,1.1vw,0.95rem)] leading-relaxed text-cream-muted/75 max-w-xl">
-            {categoryInfo.description}
-          </p>
-        </div>
-      </section>
+      <AtelierHero 
+        eyebrow="Shop / Category"
+        title={categoryInfo.name}
+        subtitle={categoryInfo.description}
+        bottomText="↓ Discover Catalog ↓"
+        images={categoryGalleryImages}
+      />
 
       <div ref={productRef} className="px-[clamp(1.5rem,5vw,4rem)] py-12 bg-background">
         {/* Category Filter Bar */}

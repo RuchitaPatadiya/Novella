@@ -1,10 +1,10 @@
 import mongoose from "mongoose";
 
-const collectionSchema = new mongoose.Schema(
+const subcategorySchema = new mongoose.Schema(
   {
     slug: {
       type: String,
-      required: [true, "Collection slug is required"],
+      required: [true, "Subcategory slug is required"],
       unique: true,
       lowercase: true,
       trim: true,
@@ -12,16 +12,15 @@ const collectionSchema = new mongoose.Schema(
     },
     name: {
       type: String,
-      required: [true, "Collection display name is required"],
+      required: [true, "Subcategory display name is required"],
       trim: true,
     },
-    tagline: {
+    category: {
       type: String,
-      default: "",
-    },
-    navbarDescription: {
-      type: String,
-      default: "",
+      required: [true, "Parent category slug is required"],
+      lowercase: true,
+      trim: true,
+      index: true,
     },
     image: {
       type: String,
@@ -41,5 +40,5 @@ const collectionSchema = new mongoose.Schema(
   }
 );
 
-const Collection = mongoose.model("Collection", collectionSchema);
-export default Collection;
+const Subcategory = mongoose.model("Subcategory", subcategorySchema);
+export default Subcategory;

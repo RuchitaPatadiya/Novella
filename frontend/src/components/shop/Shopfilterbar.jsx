@@ -1,6 +1,4 @@
-import React from "react";
-
-const categories = [
+const defaultCategories = [
   { id: "all",               label: "All"               },
   { id: "furniture",         label: "Furniture"         },
   { id: "lighting",          label: "Lighting"          },
@@ -17,7 +15,7 @@ const spacesOptions = [
   { id: "outdoor",     label: "Outdoor"     },
 ];
 
-const collectionsOptions = [
+const defaultCollections = [
   { id: "modern-minimalist", label: "Modern Minimalist" },
   { id: "luxury-living",     label: "Luxury Living"     },
   { id: "scandinavian",      label: "Scandinavian"      },
@@ -27,6 +25,8 @@ const collectionsOptions = [
 ];
 
 export default function ShopFilterBar({
+  categories = [],
+  collections = [],
   activeCategory,
   onCategoryChange,
   sortBy,
@@ -42,6 +42,13 @@ export default function ShopFilterBar({
   resultCount,
   onClearAll,
 }) {
+  const displayCategories = categories && categories.length > 0
+    ? [{ id: "all", label: "All" }, ...categories.map(c => ({ id: c.slug, label: c.name }))]
+    : defaultCategories;
+
+  const displayCollections = collections && collections.length > 0
+    ? collections.map(c => ({ id: c.slug, label: c.name }))
+    : defaultCollections;
   
   const handleSpaceToggle = (spaceId) => {
     const next = selectedSpaces.includes(spaceId)
@@ -64,7 +71,7 @@ export default function ShopFilterBar({
 
         {/* Category pills */}
         <div className="flex items-center gap-2 flex-wrap">
-          {categories.map(cat => {
+          {displayCategories.map(cat => {
             const isActive = activeCategory === cat.id;
             return (
               <button
@@ -166,7 +173,7 @@ export default function ShopFilterBar({
               Filter by Collection
             </h4>
             <div className="flex flex-col gap-2.5">
-              {collectionsOptions.map((opt) => (
+              {displayCollections.map((opt) => (
                 <label 
                   key={opt.id} 
                   className="flex items-center gap-2.5 font-body text-xs text-muted hover:text-ink cursor-pointer select-none"

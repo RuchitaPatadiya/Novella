@@ -9,12 +9,16 @@ import {
   cancelOrder,
   returnOrder,
   refundOrder,
+  trackOrderPublicly,
 } from "../controllers/orderControllers.js";
 import { protect, admin } from "../middleware/authMiddleware.js";
 import { validateBody } from "../middleware/validationMiddleware.js";
 import { orderSchema, razorpayOrderSchema } from "../validation/schemas.js";
 
 const router = express.Router();
+
+router.route("/track/:orderId")
+  .get(trackOrderPublicly);
 
 // Customer checkout route (must be logged in)
 router.route("/")

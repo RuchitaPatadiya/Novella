@@ -1,5 +1,7 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useProducts } from "../../context/ProductContext";
+import API from "../../services/api";
 
 const categoriesTemplate = [
   {
@@ -31,8 +33,32 @@ const categoriesTemplate = [
 
 export default function ShopByCategory() {
   const { products } = useProducts();
+  const [dbCategories, setDbCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const categories = categoriesTemplate.map((cat) => {
+  useEffect(() => {
+    const fetchCats = async () => {
+      try {
+        const res = await API.get("/categories");
+        setDbCategories(res.data);
+      } catch (err) {
+        console.error("Failed to load categories for homepage strip:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCats();
+  }, []);
+
+  const displayTemplate = dbCategories.length > 0
+    ? dbCategories.map(cat => ({
+        id: cat.slug,
+        label: cat.name,
+        image: cat.heroImage || "https://images.unsplash.com/photo-1581428982868-e410dd047a90?w=400&q=80"
+      }))
+    : categoriesTemplate;
+
+  const categories = displayTemplate.map((cat) => {
     const count = products.filter((p) => p.category === cat.id).length;
     return {
       ...cat,
@@ -66,13 +92,20 @@ export default function ShopByCategory() {
           </Link>
         </div>
 
-        {/* Clean Minimalist Rounded Card Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+        {/* Clean Minimalist Rounded Card Scroll Row */}
+        <div 
+          className="flex items-stretch gap-6 overflow-x-auto pb-4 scrollbar-none"
+          style={{
+            msOverflowStyle: "none",
+            scrollbarWidth: "none",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
           {categories.map((cat) => (
             <Link
               key={cat.id}
               to={`/shop/${cat.id}`}
-              className="group flex flex-col items-center justify-center bg-surface/35 hover:bg-surface border border-border/50 hover:border-bronze/35 rounded-[20px] py-8 px-4 transition-all duration-400 no-underline hover:shadow-[0_12px_28px_rgba(176,125,58,0.05)]"
+              className="group flex flex-col items-center justify-center bg-surface/35 hover:bg-surface border border-border/50 hover:border-bronze/35 rounded-[20px] py-8 px-4 transition-all duration-400 no-underline hover:shadow-[0_12px_28px_rgba(176,125,58,0.05)] w-[190px] sm:w-[220px] shrink-0"
             >
               {/* Round Image Mask */}
               <div className="w-24 h-24 rounded-full overflow-hidden border border-border bg-background flex items-center justify-center transition-all duration-500 group-hover:scale-105 group-hover:border-bronze/35 shadow-inner shrink-0 mb-4">
@@ -84,8 +117,8 @@ export default function ShopByCategory() {
               </div>
 
               {/* Title & Item Counter */}
-              <div className="text-center">
-                <h3 className="font-display font-medium text-[1.08rem] text-ink m-0 mb-1 group-hover:text-bronze transition-colors duration-200">
+              <div className="text-center w-full">
+                <h3 className="font-display font-medium text-[1.08rem] text-ink m-0 mb-1 group-hover:text-bronze transition-colors duration-200 truncate px-2">
                   {cat.label}
                 </h3>
                 <span className="font-body font-normal text-[0.58rem] text-muted tracking-widest uppercase">

@@ -75,6 +75,7 @@ const AdminPage = () => {
     careInstructions: "",
     spaces: [],
     collections: [],
+    subcategory: "",
   });
 
   const [formSuccess, setFormSuccess] = useState("");
@@ -92,6 +93,82 @@ const AdminPage = () => {
   const [catalogCategory, setCatalogCategory] = useState("All");
   const [catalogStock, setCatalogStock] = useState("All"); // All | in-stock | low-stock | out-of-stock
   const [catalogSort, setCatalogSort] = useState("name-asc"); // name-asc | name-desc | price-asc | price-desc | stock-asc | stock-desc
+
+  // Dynamic categories, collections, and subcategories states
+  const [taxSubTab, setTaxSubTab] = useState("categories"); // categories | collections | subcategories
+  const [isUploadingCatImage, setIsUploadingCatImage] = useState(false);
+  const [isUploadingCollImage, setIsUploadingCollImage] = useState(false);
+  const [isDraggingCat, setIsDraggingCat] = useState(false);
+  const [isDraggingColl, setIsDraggingColl] = useState(false);
+  const [categories, setCategories] = useState([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [collections, setCollections] = useState([]);
+  const [collectionsLoading, setCollectionsLoading] = useState(true);
+  const [subcategories, setSubcategories] = useState([]);
+  const [subcategoriesLoading, setSubcategoriesLoading] = useState(true);
+  const [isUploadingSubImage, setIsUploadingSubImage] = useState(false);
+  const [isDraggingSub, setIsDraggingSub] = useState(false);
+  const [isUploadingCmsHeroImage, setIsUploadingCmsHeroImage] = useState(false);
+  const [isDraggingCmsHero, setIsDraggingCmsHero] = useState(false);
+  const [isUploadingCmsPromoImage, setIsUploadingCmsPromoImage] = useState(false);
+  const [isDraggingCmsPromo, setIsDraggingCmsPromo] = useState(false);
+  const [cmsTeamUploadingIdx, setCmsTeamUploadingIdx] = useState(null);
+
+  // Categories form state
+  const [categoryFormData, setCategoryFormData] = useState({
+    slug: "",
+    name: "",
+    description: "",
+    navbarDescription: "",
+    heroImage: "",
+    order: 0,
+    isActive: true,
+  });
+  const [editingCategorySlug, setEditingCategorySlug] = useState(null); // null if adding new
+  const [categoryFormError, setCategoryFormError] = useState("");
+  const [categoryFormSuccess, setCategoryFormSuccess] = useState("");
+
+  // Collections form state
+  const [collectionFormData, setCollectionFormData] = useState({
+    slug: "",
+    name: "",
+    tagline: "",
+    navbarDescription: "",
+    image: "",
+    order: 0,
+    isActive: true,
+  });
+  const [editingCollectionSlug, setEditingCollectionSlug] = useState(null); // null if adding new
+  const [collectionFormError, setCollectionFormError] = useState("");
+  const [collectionFormSuccess, setCollectionFormSuccess] = useState("");
+
+  // Subcategories form state
+  const [subcategoryFormData, setSubcategoryFormData] = useState({
+    slug: "",
+    name: "",
+    category: "",
+    image: "",
+    order: 0,
+    isActive: true,
+  });
+  const [editingSubcategorySlug, setEditingSubcategorySlug] = useState(null); // null if adding new
+  const [subcategoryFormError, setSubcategoryFormError] = useState("");
+  const [subcategoryFormSuccess, setSubcategoryFormSuccess] = useState("");
+
+  // Showcases states
+  const [showcases, setShowcases] = useState([]);
+  const [showcasesLoading, setShowcasesLoading] = useState(true);
+  const [showcaseFormData, setShowcaseFormData] = useState({
+    handle: "",
+    space: "",
+    productName: "",
+    productId: "",
+    image: ""
+  });
+  const [showcaseFormError, setShowcaseFormError] = useState("");
+  const [showcaseFormSuccess, setShowcaseFormSuccess] = useState("");
+  const [isUploadingShowcaseImage, setIsUploadingShowcaseImage] = useState(false);
+  const [isDraggingShowcase, setIsDraggingShowcase] = useState(false);
 
   // Fetch orders from database
   const fetchOrders = async () => {
@@ -194,6 +271,19 @@ const AdminPage = () => {
     codFee: 50,
     taxRate: 18
   });
+  const [cmsAboutStats, setCmsAboutStats] = useState([]);
+  const [cmsAboutMilestones, setCmsAboutMilestones] = useState([]);
+  const [cmsShopTheLook, setCmsShopTheLook] = useState({
+    image: "",
+    title: "",
+    subtitle: "",
+    buttonText: "",
+    buttonLink: "",
+    hotspots: []
+  });
+  const [isUploadingCmsShowcaseImage, setIsUploadingCmsShowcaseImage] = useState(false);
+  const [isDraggingCmsShowcase, setIsDraggingCmsShowcase] = useState(false);
+  const [selectedHotspotIdx, setSelectedHotspotIdx] = useState(0);
 
   const [cmsLoading, setCmsLoading] = useState(false);
   const [cmsSuccess, setCmsSuccess] = useState("");
@@ -212,6 +302,9 @@ const AdminPage = () => {
         if (data.home_spaces) setCmsSpaces(data.home_spaces);
         if (data.brand_perks) setCmsPerks(data.brand_perks);
         if (data.checkout_settings) setCmsCheckout(data.checkout_settings);
+        if (data.about_stats) setCmsAboutStats(data.about_stats);
+        if (data.about_milestones) setCmsAboutMilestones(data.about_milestones);
+        if (data.shop_the_look) setCmsShopTheLook(data.shop_the_look);
       }
     } catch (err) {
       console.error("Failed to load CMS settings:", err);
@@ -234,6 +327,221 @@ const AdminPage = () => {
     }
   };
 
+  const uploadCmsHeroImage = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCmsError("Only image files are supported.");
+      return;
+    }
+    try {
+      setIsUploadingCmsHeroImage(true);
+      setCmsError("");
+      const payload = new FormData();
+      payload.append("image", file);
+      const res = await API.post("/products/upload", payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      if (res.data?.url) {
+        setCmsHero((prev) => ({ ...prev, image: res.data.url }));
+        setCmsSuccess("Hero background image uploaded successfully!");
+        setTimeout(() => setCmsSuccess(""), 4000);
+      }
+    } catch (err) {
+      console.error("Hero CMS image upload failed:", err);
+      setCmsError(err.response?.data?.message || "Failed to upload image.");
+    } finally {
+      setIsUploadingCmsHeroImage(false);
+    }
+  };
+
+  const uploadCmsShowcaseImage = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCmsError("Only image files are supported.");
+      return;
+    }
+    try {
+      setIsUploadingCmsShowcaseImage(true);
+      setCmsError("");
+      const payload = new FormData();
+      payload.append("image", file);
+      const res = await API.post("/products/upload", payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      if (res.data?.url) {
+        setCmsShopTheLook((prev) => ({ ...prev, image: res.data.url }));
+        setCmsSuccess("Interactive showcase backdrop image uploaded successfully!");
+        setTimeout(() => setCmsSuccess(""), 4000);
+      }
+    } catch (err) {
+      console.error("Showcase backdrop upload failed:", err);
+      setCmsError(err.response?.data?.message || "Failed to upload image.");
+    } finally {
+      setIsUploadingCmsShowcaseImage(false);
+    }
+  };
+
+  const uploadCmsPromoImage = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCmsError("Only image files are supported.");
+      return;
+    }
+    try {
+      setIsUploadingCmsPromoImage(true);
+      setCmsError("");
+      const payload = new FormData();
+      payload.append("image", file);
+      const res = await API.post("/products/upload", payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      if (res.data?.url) {
+        setCmsPromo((prev) => ({ ...prev, image: res.data.url }));
+        setCmsSuccess("Promo banner image uploaded successfully!");
+        setTimeout(() => setCmsSuccess(""), 4000);
+      }
+    } catch (err) {
+      console.error("Promo CMS image upload failed:", err);
+      setCmsError(err.response?.data?.message || "Failed to upload image.");
+    } finally {
+      setIsUploadingCmsPromoImage(false);
+    }
+  };
+
+  const uploadCmsTeamImage = async (file, idx) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCmsError("Only image files are supported.");
+      return;
+    }
+    try {
+      setCmsTeamUploadingIdx(idx);
+      setCmsError("");
+      const payload = new FormData();
+      payload.append("image", file);
+      const res = await API.post("/products/upload", payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      if (res.data?.url) {
+        const updated = [...cmsTeam];
+        updated[idx].image = res.data.url;
+        setCmsTeam(updated);
+        setCmsSuccess(`Team member #${idx + 1} portrait uploaded successfully!`);
+        setTimeout(() => setCmsSuccess(""), 4000);
+      }
+    } catch (err) {
+      console.error("Team CMS portrait upload failed:", err);
+      setCmsError(err.response?.data?.message || "Failed to upload image.");
+    } finally {
+      setCmsTeamUploadingIdx(null);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      setCategoriesLoading(true);
+      const res = await API.get("/categories?all=true");
+      setCategories(res.data);
+    } catch (err) {
+      console.error("Failed to load categories:", err);
+    } finally {
+      setCategoriesLoading(false);
+    }
+  };
+
+  const fetchCollections = async () => {
+    try {
+      setCollectionsLoading(true);
+      const res = await API.get("/collections?all=true");
+      setCollections(res.data);
+    } catch (err) {
+      console.error("Failed to load collections:", err);
+    } finally {
+      setCollectionsLoading(false);
+    }
+  };
+
+  const fetchSubcategories = async () => {
+    try {
+      setSubcategoriesLoading(true);
+      const res = await API.get("/subcategories?all=true");
+      setSubcategories(res.data);
+    } catch (err) {
+      console.error("Failed to load subcategories:", err);
+    } finally {
+      setSubcategoriesLoading(false);
+    }
+  };
+
+  const fetchShowcases = async () => {
+    try {
+      setShowcasesLoading(true);
+      const res = await API.get("/showcases");
+      setShowcases(res.data);
+    } catch (err) {
+      console.error("Failed to load showcases:", err);
+    } finally {
+      setShowcasesLoading(false);
+    }
+  };
+
+  const handleDeleteShowcase = async (showcaseId) => {
+    if (window.confirm("Are you sure you want to delete this showcase post?")) {
+      try {
+        await API.delete(`/showcases/${showcaseId}`);
+        setShowcases((prev) => prev.filter((s) => s._id !== showcaseId));
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to delete showcase.");
+      }
+    }
+  };
+
+  const handleShowcaseSubmit = async (e) => {
+    e.preventDefault();
+    setShowcaseFormError("");
+    setShowcaseFormSuccess("");
+
+    const { handle, space, productName, productId, image } = showcaseFormData;
+    if (!handle || !space || !productName || !productId || !image) {
+      setShowcaseFormError("All fields and image are required.");
+      return;
+    }
+
+    try {
+      const res = await API.post("/showcases", showcaseFormData);
+      setShowcases((prev) => [res.data, ...prev]);
+      setShowcaseFormSuccess("Showcase post added successfully!");
+      setShowcaseFormData({
+        handle: "",
+        space: "",
+        productName: "",
+        productId: "",
+        image: ""
+      });
+    } catch (err) {
+      setShowcaseFormError(err.response?.data?.message || "Failed to add showcase.");
+    }
+  };
+
+  const handleShowcaseImageUpload = async (file) => {
+    if (!file) return;
+    setIsUploadingShowcaseImage(true);
+    setShowcaseFormError("");
+    const uploadPayload = new FormData();
+    uploadPayload.append("image", file);
+    try {
+      const res = await API.post("/products/upload", uploadPayload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      setShowcaseFormData((prev) => ({ ...prev, image: res.data.url }));
+    } catch (err) {
+      console.error("Showcase image upload failed:", err);
+      setShowcaseFormError(err.response?.data?.message || "Failed to upload showcase image.");
+    } finally {
+      setIsUploadingShowcaseImage(false);
+    }
+  };
+
   useEffect(() => {
     if (!loading) {
       if (!user) {
@@ -247,6 +555,10 @@ const AdminPage = () => {
         fetchMessages();
         fetchAnalytics();
         fetchCmsSettings();
+        fetchCategories();
+        fetchCollections();
+        fetchSubcategories();
+        fetchShowcases();
       }
     }
   }, [user, loading, navigate]);
@@ -294,6 +606,327 @@ const AdminPage = () => {
       });
     } catch (err) {
       setPromoFormError(err.response?.data?.message || "Failed to create promo code.");
+    }
+  };
+
+  const uploadCatImage = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCategoryFormError("Only image files are supported.");
+      return;
+    }
+    try {
+      setIsUploadingCatImage(true);
+      setCategoryFormError("");
+      const payload = new FormData();
+      payload.append("image", file);
+      const res = await API.post("/products/upload", payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      if (res.data?.url) {
+        setCategoryFormData((prev) => ({ ...prev, heroImage: res.data.url }));
+        setCategoryFormSuccess("Category image uploaded successfully!");
+        setTimeout(() => setCategoryFormSuccess(""), 4000);
+      }
+    } catch (err) {
+      console.error("Category image upload failed:", err);
+      setCategoryFormError(err.response?.data?.message || "Failed to upload category image.");
+    } finally {
+      setIsUploadingCatImage(false);
+    }
+  };
+
+  const uploadCollImage = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setCollectionFormError("Only image files are supported.");
+      return;
+    }
+    try {
+      setIsUploadingCollImage(true);
+      setCollectionFormError("");
+      const payload = new FormData();
+      payload.append("image", file);
+      const res = await API.post("/products/upload", payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      if (res.data?.url) {
+        setCollectionFormData((prev) => ({ ...prev, image: res.data.url }));
+        setCollectionFormSuccess("Collection image uploaded successfully!");
+        setTimeout(() => setCollectionFormSuccess(""), 4000);
+      }
+    } catch (err) {
+      console.error("Collection image upload failed:", err);
+      setCollectionFormError(err.response?.data?.message || "Failed to upload collection image.");
+    } finally {
+      setIsUploadingCollImage(false);
+    }
+  };
+
+  // --- Category CRUD Handlers ---
+  const handleCategoryInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const val = type === "checkbox" ? checked : value;
+    
+    setCategoryFormData((prev) => {
+      const updated = { ...prev, [name]: val };
+      if (name === "name" && !editingCategorySlug) {
+        updated.slug = value
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-");
+      }
+      return updated;
+    });
+  };
+
+  const handleCategorySubmit = async (e) => {
+    e.preventDefault();
+    setCategoryFormError("");
+    setCategoryFormSuccess("");
+
+    if (!categoryFormData.slug || !categoryFormData.name) {
+      setCategoryFormError("Slug and Name are required.");
+      return;
+    }
+
+    try {
+      if (editingCategorySlug) {
+        const res = await API.put(`/categories/${editingCategorySlug}`, categoryFormData);
+        setCategories((prev) =>
+          prev.map((c) => (c.slug === editingCategorySlug ? res.data : c))
+        );
+        setCategoryFormSuccess(`Category "${res.data.name}" updated successfully.`);
+      } else {
+        const res = await API.post("/categories", categoryFormData);
+        setCategories((prev) => [...prev, res.data]);
+        setCategoryFormSuccess(`Category "${res.data.name}" created successfully.`);
+      }
+      setCategoryFormData({
+        slug: "",
+        name: "",
+        description: "",
+        navbarDescription: "",
+        heroImage: "",
+        order: 0,
+        isActive: true,
+      });
+      setEditingCategorySlug(null);
+    } catch (err) {
+      setCategoryFormError(err.response?.data?.message || "Failed to save category.");
+    }
+  };
+
+  const handleEditCategoryClick = (cat) => {
+    setCategoryFormError("");
+    setCategoryFormSuccess("");
+    setCategoryFormData({
+      slug: cat.slug,
+      name: cat.name,
+      description: cat.description || "",
+      navbarDescription: cat.navbarDescription || "",
+      heroImage: cat.heroImage || "",
+      order: cat.order || 0,
+      isActive: cat.isActive !== false,
+    });
+    setEditingCategorySlug(cat.slug);
+  };
+
+  const handleDeleteCategory = async (slug) => {
+    if (window.confirm(`Are you sure you want to delete the category "${slug}"?`)) {
+      try {
+        await API.delete(`/categories/${slug}`);
+        setCategories((prev) => prev.filter((c) => c.slug !== slug));
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to delete category.");
+      }
+    }
+  };
+
+  // --- Collection CRUD Handlers ---
+  const handleCollectionInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const val = type === "checkbox" ? checked : value;
+    
+    setCollectionFormData((prev) => {
+      const updated = { ...prev, [name]: val };
+      if (name === "name" && !editingCollectionSlug) {
+        updated.slug = value
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-");
+      }
+      return updated;
+    });
+  };
+
+  const handleCollectionSubmit = async (e) => {
+    e.preventDefault();
+    setCollectionFormError("");
+    setCollectionFormSuccess("");
+
+    if (!collectionFormData.slug || !collectionFormData.name) {
+      setCollectionFormError("Slug and Name are required.");
+      return;
+    }
+
+    try {
+      if (editingCollectionSlug) {
+        const res = await API.put(`/collections/${editingCollectionSlug}`, collectionFormData);
+        setCollections((prev) =>
+          prev.map((c) => (c.slug === editingCollectionSlug ? res.data : c))
+        );
+        setCollectionFormSuccess(`Collection "${res.data.name}" updated successfully.`);
+      } else {
+        const res = await API.post("/collections", collectionFormData);
+        setCollections((prev) => [...prev, res.data]);
+        setCollectionFormSuccess(`Collection "${res.data.name}" created successfully.`);
+      }
+      setCollectionFormData({
+        slug: "",
+        name: "",
+        tagline: "",
+        navbarDescription: "",
+        image: "",
+        order: 0,
+        isActive: true,
+      });
+      setEditingCollectionSlug(null);
+    } catch (err) {
+      setCollectionFormError(err.response?.data?.message || "Failed to save collection.");
+    }
+  };
+
+  const handleEditCollectionClick = (coll) => {
+    setCollectionFormError("");
+    setCollectionFormSuccess("");
+    setCollectionFormData({
+      slug: coll.slug,
+      name: coll.name,
+      tagline: coll.tagline || "",
+      navbarDescription: coll.navbarDescription || "",
+      image: coll.image || "",
+      order: coll.order || 0,
+      isActive: coll.isActive !== false,
+    });
+    setEditingCollectionSlug(coll.slug);
+  };
+
+  const handleDeleteCollection = async (slug) => {
+    if (window.confirm(`Are you sure you want to delete the collection "${slug}"?`)) {
+      try {
+        await API.delete(`/collections/${slug}`);
+        setCollections((prev) => prev.filter((c) => c.slug !== slug));
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to delete collection.");
+      }
+    }
+  };
+  const uploadSubImage = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setSubcategoryFormError("Only image files are supported.");
+      return;
+    }
+    try {
+      setIsUploadingSubImage(true);
+      setSubcategoryFormError("");
+      const payload = new FormData();
+      payload.append("image", file);
+      const res = await API.post("/products/upload", payload, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
+      if (res.data?.url) {
+        setSubcategoryFormData((prev) => ({ ...prev, image: res.data.url }));
+        setSubcategoryFormSuccess("Atelier Type image uploaded successfully!");
+        setTimeout(() => setSubcategoryFormSuccess(""), 4000);
+      }
+    } catch (err) {
+      console.error("Subcategory image upload failed:", err);
+      setSubcategoryFormError(err.response?.data?.message || "Failed to upload image.");
+    } finally {
+      setIsUploadingSubImage(false);
+    }
+  };
+
+  // --- Subcategory (Atelier Type) CRUD Handlers ---
+  const handleSubcategoryInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const val = type === "checkbox" ? checked : value;
+    
+    setSubcategoryFormData((prev) => {
+      const updated = { ...prev, [name]: val };
+      if (name === "name" && !editingSubcategorySlug) {
+        updated.slug = value
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, "")
+          .replace(/\s+/g, "-")
+          .replace(/-+/g, "-");
+      }
+      return updated;
+    });
+  };
+
+  const handleSubcategorySubmit = async (e) => {
+    e.preventDefault();
+    setSubcategoryFormError("");
+    setSubcategoryFormSuccess("");
+
+    if (!subcategoryFormData.slug || !subcategoryFormData.name || !subcategoryFormData.category) {
+      setSubcategoryFormError("Slug, Name, and Parent Category are required.");
+      return;
+    }
+
+    try {
+      if (editingSubcategorySlug) {
+        const res = await API.put(`/subcategories/${editingSubcategorySlug}`, subcategoryFormData);
+        setSubcategories((prev) =>
+          prev.map((c) => (c.slug === editingSubcategorySlug ? res.data : c))
+        );
+        setSubcategoryFormSuccess(`Atelier Type "${res.data.name}" updated successfully.`);
+      } else {
+        const res = await API.post("/subcategories", subcategoryFormData);
+        setSubcategories((prev) => [...prev, res.data]);
+        setSubcategoryFormSuccess(`Atelier Type "${res.data.name}" created successfully.`);
+      }
+      setSubcategoryFormData({
+        slug: "",
+        name: "",
+        category: categories[0]?.slug || "",
+        image: "",
+        order: 0,
+        isActive: true,
+      });
+      setEditingSubcategorySlug(null);
+    } catch (err) {
+      setSubcategoryFormError(err.response?.data?.message || "Failed to save subcategory.");
+    }
+  };
+
+  const handleEditSubcategoryClick = (sub) => {
+    setSubcategoryFormError("");
+    setSubcategoryFormSuccess("");
+    setSubcategoryFormData({
+      slug: sub.slug,
+      name: sub.name,
+      category: sub.category,
+      image: sub.image || "",
+      order: sub.order || 0,
+      isActive: sub.isActive !== false,
+    });
+    setEditingSubcategorySlug(sub.slug);
+  };
+
+  const handleDeleteSubcategory = async (slug) => {
+    if (window.confirm(`Are you sure you want to delete the Atelier Type "${slug}"?`)) {
+      try {
+        await API.delete(`/subcategories/${slug}`);
+        setSubcategories((prev) => prev.filter((c) => c.slug !== slug));
+      } catch (err) {
+        alert(err.response?.data?.message || "Failed to delete subcategory.");
+      }
     }
   };
 
@@ -407,6 +1040,7 @@ const AdminPage = () => {
       careInstructions: p.careInstructions || "",
       spaces: p.spaces || [],
       collections: p.collections || [],
+      subcategory: p.subcategory || "",
     });
     setDescTab("write");
     setCareTab("write");
@@ -431,6 +1065,7 @@ const AdminPage = () => {
       careInstructions: "",
       spaces: [],
       collections: [],
+      subcategory: "",
     });
     setDescTab("write");
     setCareTab("write");
@@ -577,6 +1212,7 @@ const AdminPage = () => {
     const payload = {
       name: formData.name,
       category: formData.category,
+      subcategory: formData.subcategory,
       price: Number(formData.price),
       originalPrice: formData.originalPrice ? Number(formData.originalPrice) : null,
       stock: formData.stock !== "" ? Number(formData.stock) : 10,
@@ -703,6 +1339,20 @@ const AdminPage = () => {
             </button>
 
             <button
+              onClick={() => setActivePanel("categories_collections")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "categories_collections"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
+              }`}
+            >
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Categories & Collections
+            </button>
+
+            <button
               onClick={() => setActivePanel("reviews")}
               className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
                 activePanel === "reviews"
@@ -757,6 +1407,20 @@ const AdminPage = () => {
               </svg>
               Atelier CMS Config
             </button>
+
+            <button
+              onClick={() => setActivePanel("showcases")}
+              className={`w-full text-left font-body text-xs tracking-wider uppercase border-0 px-4 py-3 cursor-pointer transition-all duration-200 flex items-center gap-3 ${
+                activePanel === "showcases"
+                  ? "bg-border/60 text-ink font-semibold"
+                  : "bg-transparent text-muted hover:text-ink hover:bg-border/30"
+              }`}
+            >
+              <svg className="w-4 h-4 text-bronze" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Showcases
+            </button>
           </nav>
         </div>
 
@@ -786,10 +1450,12 @@ const AdminPage = () => {
             {activePanel === "overview" && "Dashboard Overview"}
             {activePanel === "orders" && "Customer Purchases"}
             {activePanel === "catalog" && "Inventory Catalog"}
+            {activePanel === "categories_collections" && "Categories & Collections"}
             {activePanel === "reviews" && "Reviews Moderation"}
             {activePanel === "promotions" && "Promotional Campaigns"}
             {activePanel === "messages" && "Contact Messages"}
             {activePanel === "cms" && "Atelier Content Configurator (CMS)"}
+            {activePanel === "showcases" && "Community Showcases"}
           </h2>
           <span className="font-body text-[0.65rem] tracking-wider text-muted uppercase">
             Logged in as Admin
@@ -1235,9 +1901,15 @@ const AdminPage = () => {
                     style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23999' stroke-width='1.2'/%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: "28px" }}
                   >
                     <option value="All">All Categories</option>
-                    {[...new Set(products.map(p => p.category))].filter(Boolean).sort().map(cat => (
-                      <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, " ")}</option>
-                    ))}
+                    {categories.length === 0 ? (
+                      [...new Set(products.map(p => p.category))].filter(Boolean).sort().map(cat => (
+                        <option key={cat} value={cat}>{cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, " ")}</option>
+                      ))
+                    ) : (
+                      categories.map(cat => (
+                        <option key={cat.slug} value={cat.slug}>{cat.name}</option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -1429,6 +2101,783 @@ const AdminPage = () => {
                   </>
                 );
               })()}
+            </div>
+          )}
+
+          {/* CATEGORIES & COLLECTIONS TAXONOMY PANEL */}
+          {activePanel === "categories_collections" && (
+            <div className="bg-white border border-border p-6 sm:p-8 rounded-[3px] shadow-xs animate-fadeIn space-y-8">
+              {/* Tab Selector */}
+              <div className="flex items-center gap-6 border-b border-border/50 pb-3">
+                <button
+                  onClick={() => setTaxSubTab("categories")}
+                  className={`font-display text-sm tracking-wider uppercase border-0 bg-transparent pb-2 cursor-pointer transition-all ${
+                    taxSubTab === "categories"
+                      ? "border-b-2 border-bronze text-ink font-medium"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  Categories ({categories.length})
+                </button>
+                <button
+                  onClick={() => setTaxSubTab("subcategories")}
+                  className={`font-display text-sm tracking-wider uppercase border-0 bg-transparent pb-2 cursor-pointer transition-all ${
+                    taxSubTab === "subcategories"
+                      ? "border-b-2 border-bronze text-ink font-medium"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  Atelier Types ({subcategories.length})
+                </button>
+                <button
+                  onClick={() => setTaxSubTab("collections")}
+                  className={`font-display text-sm tracking-wider uppercase border-0 bg-transparent pb-2 cursor-pointer transition-all ${
+                    taxSubTab === "collections"
+                      ? "border-b-2 border-bronze text-ink font-medium"
+                      : "text-muted hover:text-ink"
+                  }`}
+                >
+                  Collections ({collections.length})
+                </button>
+              </div>
+
+              {/* 1. CATEGORIES SUBTAB */}
+              {taxSubTab === "categories" && (
+                <div className="space-y-8">
+                  {/* Category editor form */}
+                  <div className="bg-surface p-5 sm:p-6 border border-border/60 rounded-[2px]">
+                    <h4 className="font-display font-light text-sm text-ink uppercase tracking-wider mb-4">
+                      {editingCategorySlug ? `Edit Category: ${editingCategorySlug}` : "Add New Category"}
+                    </h4>
+                    <form onSubmit={handleCategorySubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Category Name</label>
+                          <input
+                            type="text"
+                            name="name"
+                            value={categoryFormData.name}
+                            onChange={handleCategoryInputChange}
+                            placeholder="e.g., Lighting"
+                            required
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">
+                            Category Slug {editingCategorySlug && <span className="text-red-600">(readonly)</span>}
+                          </label>
+                          <input
+                            type="text"
+                            name="slug"
+                            value={categoryFormData.slug}
+                            onChange={handleCategoryInputChange}
+                            placeholder="e.g., lighting"
+                            required
+                            disabled={!!editingCategorySlug}
+                            className="w-full bg-white disabled:bg-border/20 border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Description</label>
+                          <textarea
+                            name="description"
+                            value={categoryFormData.description}
+                            onChange={handleCategoryInputChange}
+                            placeholder="Briefly describe what pieces are in this category..."
+                            rows="2"
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Navbar Short Description</label>
+                          <textarea
+                            name="navbarDescription"
+                            value={categoryFormData.navbarDescription}
+                            onChange={handleCategoryInputChange}
+                            placeholder="Clean short tagline shown in main header dropdown..."
+                            rows="2"
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                        <div className="sm:col-span-2">
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Hero Backdrop Image</label>
+                          <div
+                            onDragOver={(e) => { e.preventDefault(); setIsDraggingCat(true); }}
+                            onDragLeave={() => setIsDraggingCat(false)}
+                            onDrop={(e) => { e.preventDefault(); setIsDraggingCat(false); if (e.dataTransfer.files?.[0]) uploadCatImage(e.dataTransfer.files[0]); }}
+                            className={`border border-dashed p-4 text-center rounded-[2px] transition-all flex flex-col items-center justify-center min-h-[90px] cursor-pointer ${
+                              isDraggingCat ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/60 bg-white"
+                            }`}
+                            onClick={() => document.getElementById("cat-file-input").click()}
+                          >
+                            <input
+                              type="file"
+                              id="cat-file-input"
+                              accept="image/*"
+                              onChange={(e) => { if (e.target.files?.[0]) uploadCatImage(e.target.files[0]); }}
+                              className="hidden"
+                            />
+                            {isUploadingCatImage ? (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-4 h-4 border border-bronze border-t-transparent rounded-full animate-spin" />
+                                <span className="font-body text-[0.65rem] text-muted uppercase">Uploading image...</span>
+                              </div>
+                            ) : categoryFormData.heroImage ? (
+                              <div className="flex items-center gap-3 w-full text-left">
+                                <img
+                                  src={categoryFormData.heroImage}
+                                  alt="Preview"
+                                  className="w-14 h-10 object-cover border border-border bg-surface shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-body text-[0.68rem] text-ink font-medium block truncate">File Uploaded</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setCategoryFormData(prev => ({ ...prev, heroImage: "" })); }}
+                                    className="bg-transparent border-0 font-body text-[0.55rem] tracking-wider uppercase text-red-650 hover:text-red-800 cursor-pointer p-0 mt-0.5"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="font-body text-[0.7rem] text-ink font-medium">Drag & Drop or Click to Upload</span>
+                                <span className="font-body text-[0.55rem] text-muted uppercase">JPG, PNG, WEBP files</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Order Rank</label>
+                          <input
+                            type="number"
+                            name="order"
+                            value={categoryFormData.order}
+                            onChange={handleCategoryInputChange}
+                            placeholder="0"
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <input
+                          type="checkbox"
+                          id="category-active"
+                          name="isActive"
+                          checked={categoryFormData.isActive}
+                          onChange={handleCategoryInputChange}
+                          className="accent-bronze cursor-pointer"
+                        />
+                        <label htmlFor="category-active" className="font-body text-xs text-ink select-none cursor-pointer">
+                          Active & Visible on Storefront
+                        </label>
+                      </div>
+
+                      {categoryFormError && (
+                        <div className="text-red-700 text-xs font-body pt-1">{categoryFormError}</div>
+                      )}
+                      {categoryFormSuccess && (
+                        <div className="text-emerald-800 text-xs font-medium font-body pt-1">{categoryFormSuccess}</div>
+                      )}
+
+                      <div className="flex justify-end gap-3 pt-2">
+                        {editingCategorySlug && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCategorySlug(null);
+                              setCategoryFormData({
+                                slug: "",
+                                name: "",
+                                description: "",
+                                heroImage: "",
+                                order: 0,
+                                isActive: true,
+                              });
+                              setCategoryFormError("");
+                              setCategoryFormSuccess("");
+                            }}
+                            className="bg-transparent border border-border hover:border-ink text-ink font-body text-[0.62rem] tracking-wider uppercase px-4 py-2 cursor-pointer transition-colors duration-200"
+                          >
+                            Cancel Edit
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          className="bg-ink hover:bg-bronze text-background border-0 font-body text-[0.62rem] tracking-wider uppercase px-5 py-2 cursor-pointer transition-colors duration-200"
+                        >
+                          {editingCategorySlug ? "Save Changes" : "Create Category"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Categories List */}
+                  {categoriesLoading ? (
+                    <div className="text-center text-muted font-body text-xs py-8 animate-pulse">Loading categories...</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-left font-body text-xs text-ink">
+                        <thead>
+                          <tr className="border-b border-border text-[0.65rem] tracking-[0.15em] uppercase text-muted font-normal pb-2">
+                            <th className="pb-3 font-normal">Backdrop</th>
+                            <th className="pb-3 font-normal">Name</th>
+                            <th className="pb-3 font-normal">Slug</th>
+                            <th className="pb-3 font-normal">Description</th>
+                            <th className="pb-3 font-normal text-center">Rank</th>
+                            <th className="pb-3 font-normal text-center">Status</th>
+                            <th className="pb-3 font-normal text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                          {categories.map((cat) => (
+                            <tr key={cat.slug} className="hover:bg-surface/50 transition-colors">
+                              <td className="py-3">
+                                {cat.heroImage ? (
+                                  <img
+                                    src={cat.heroImage}
+                                    alt={cat.name}
+                                    className="w-10 h-8 object-cover border border-border/50"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-8 bg-border/20 border border-dashed border-border flex items-center justify-center text-[0.55rem] text-muted italic">
+                                    No Image
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 font-medium">{cat.name}</td>
+                              <td className="py-3 text-[0.7rem] font-mono text-muted">{cat.slug}</td>
+                              <td className="py-3 max-w-xs truncate text-[0.7rem] text-muted">{cat.description || <span className="italic text-muted/50">No description</span>}</td>
+                              <td className="py-3 text-center">{cat.order || 0}</td>
+                              <td className="py-3 text-center">
+                                <span className={`inline-block px-1.5 py-0.5 text-[0.58rem] uppercase tracking-wider rounded-xs font-medium ${
+                                  cat.isActive !== false ? "text-emerald-800 bg-emerald-50 border border-emerald-200" : "text-muted bg-border/20 border border-border"
+                                }`}>
+                                  {cat.isActive !== false ? "Active" : "Hidden"}
+                                </span>
+                              </td>
+                              <td className="py-3 text-right">
+                                <div className="flex justify-end gap-3.5">
+                                  <button
+                                    onClick={() => handleEditCategoryClick(cat)}
+                                    className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-ink hover:text-bronze cursor-pointer transition-colors duration-150"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteCategory(cat.slug)}
+                                    className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-red-700 hover:text-red-950 cursor-pointer transition-colors duration-150"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 2. COLLECTIONS SUBTAB */}
+              {taxSubTab === "collections" && (
+                <div className="space-y-8">
+                  {/* Collection editor form */}
+                  <div className="bg-surface p-5 sm:p-6 border border-border/60 rounded-[2px]">
+                    <h4 className="font-display font-light text-sm text-ink uppercase tracking-wider mb-4">
+                      {editingCollectionSlug ? `Edit Collection: ${editingCollectionSlug}` : "Add New Collection"}
+                    </h4>
+                    <form onSubmit={handleCollectionSubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Collection Name</label>
+                          <input
+                            type="text"
+                            name="name"
+                            value={collectionFormData.name}
+                            onChange={handleCollectionInputChange}
+                            placeholder="e.g., Scandinavian Hearth"
+                            required
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">
+                            Collection Slug {editingCollectionSlug && <span className="text-red-600">(readonly)</span>}
+                          </label>
+                          <input
+                            type="text"
+                            name="slug"
+                            value={collectionFormData.slug}
+                            onChange={handleCollectionInputChange}
+                            placeholder="e.g., scandinavian-hearth"
+                            required
+                            disabled={!!editingCollectionSlug}
+                            className="w-full bg-white disabled:bg-border/20 border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Tagline / Subtext</label>
+                          <input
+                            type="text"
+                            name="tagline"
+                            value={collectionFormData.tagline}
+                            onChange={handleCollectionInputChange}
+                            placeholder="e.g., Nordic simplicity meets raw functional textures..."
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Navbar Short Description</label>
+                          <input
+                            type="text"
+                            name="navbarDescription"
+                            value={collectionFormData.navbarDescription}
+                            onChange={handleCollectionInputChange}
+                            placeholder="Clean short tagline shown in main header dropdown..."
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                        <div className="sm:col-span-2">
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Image Backdrop</label>
+                          <div
+                            onDragOver={(e) => { e.preventDefault(); setIsDraggingColl(true); }}
+                            onDragLeave={() => setIsDraggingColl(false)}
+                            onDrop={(e) => { e.preventDefault(); setIsDraggingColl(false); if (e.dataTransfer.files?.[0]) uploadCollImage(e.dataTransfer.files[0]); }}
+                            className={`border border-dashed p-4 text-center rounded-[2px] transition-all flex flex-col items-center justify-center min-h-[90px] cursor-pointer ${
+                              isDraggingColl ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/60 bg-white"
+                            }`}
+                            onClick={() => document.getElementById("coll-file-input").click()}
+                          >
+                            <input
+                              type="file"
+                              id="coll-file-input"
+                              accept="image/*"
+                              onChange={(e) => { if (e.target.files?.[0]) uploadCollImage(e.target.files[0]); }}
+                              className="hidden"
+                            />
+                            {isUploadingCollImage ? (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-4 h-4 border border-bronze border-t-transparent rounded-full animate-spin" />
+                                <span className="font-body text-[0.65rem] text-muted uppercase">Uploading image...</span>
+                              </div>
+                            ) : collectionFormData.image ? (
+                              <div className="flex items-center gap-3 w-full text-left">
+                                <img
+                                  src={collectionFormData.image}
+                                  alt="Preview"
+                                  className="w-14 h-10 object-cover border border-border bg-surface shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-body text-[0.68rem] text-ink font-medium block truncate">File Uploaded</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setCollectionFormData(prev => ({ ...prev, image: "" })); }}
+                                    className="bg-transparent border-0 font-body text-[0.55rem] tracking-wider uppercase text-red-650 hover:text-red-800 cursor-pointer p-0 mt-0.5"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="font-body text-[0.7rem] text-ink font-medium">Drag & Drop or Click to Upload</span>
+                                <span className="font-body text-[0.55rem] text-muted uppercase">JPG, PNG, WEBP files</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Order Rank</label>
+                          <input
+                            type="number"
+                            name="order"
+                            value={collectionFormData.order}
+                            onChange={handleCollectionInputChange}
+                            placeholder="0"
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <input
+                          type="checkbox"
+                          id="collection-active"
+                          name="isActive"
+                          checked={collectionFormData.isActive}
+                          onChange={handleCollectionInputChange}
+                          className="accent-bronze cursor-pointer"
+                        />
+                        <label htmlFor="collection-active" className="font-body text-xs text-ink select-none cursor-pointer">
+                          Active & Visible on Storefront
+                        </label>
+                      </div>
+
+                      {collectionFormError && (
+                        <div className="text-red-700 text-xs font-body pt-1">{collectionFormError}</div>
+                      )}
+                      {collectionFormSuccess && (
+                        <div className="text-emerald-800 text-xs font-medium font-body pt-1">{collectionFormSuccess}</div>
+                      )}
+
+                      <div className="flex justify-end gap-3 pt-2">
+                        {editingCollectionSlug && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCollectionSlug(null);
+                              setCollectionFormData({
+                                slug: "",
+                                name: "",
+                                tagline: "",
+                                image: "",
+                                order: 0,
+                                isActive: true,
+                              });
+                              setCollectionFormError("");
+                              setCollectionFormSuccess("");
+                            }}
+                            className="bg-transparent border border-border hover:border-ink text-ink font-body text-[0.62rem] tracking-wider uppercase px-4 py-2 cursor-pointer transition-colors duration-200"
+                          >
+                            Cancel Edit
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          className="bg-ink hover:bg-bronze text-background border-0 font-body text-[0.62rem] tracking-wider uppercase px-5 py-2 cursor-pointer transition-colors duration-200"
+                        >
+                          {editingCollectionSlug ? "Save Changes" : "Create Collection"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Collections List */}
+                  {collectionsLoading ? (
+                    <div className="text-center text-muted font-body text-xs py-8 animate-pulse">Loading collections...</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-left font-body text-xs text-ink">
+                        <thead>
+                          <tr className="border-b border-border text-[0.65rem] tracking-[0.15em] uppercase text-muted font-normal pb-2">
+                            <th className="pb-3 font-normal">Backdrop</th>
+                            <th className="pb-3 font-normal">Name</th>
+                            <th className="pb-3 font-normal">Slug</th>
+                            <th className="pb-3 font-normal">Tagline</th>
+                            <th className="pb-3 font-normal text-center">Rank</th>
+                            <th className="pb-3 font-normal text-center">Status</th>
+                            <th className="pb-3 font-normal text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                          {collections.map((coll) => (
+                            <tr key={coll.slug} className="hover:bg-surface/50 transition-colors">
+                              <td className="py-3">
+                                {coll.image ? (
+                                  <img
+                                    src={coll.image}
+                                    alt={coll.name}
+                                    className="w-10 h-8 object-cover border border-border/50"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-8 bg-border/20 border border-dashed border-border flex items-center justify-center text-[0.55rem] text-muted italic">
+                                    No Image
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 font-medium">{coll.name}</td>
+                              <td className="py-3 text-[0.7rem] font-mono text-muted">{coll.slug}</td>
+                              <td className="py-3 max-w-xs truncate text-[0.7rem] text-muted">{coll.tagline || <span className="italic text-muted/50">No tagline</span>}</td>
+                              <td className="py-3 text-center">{coll.order || 0}</td>
+                              <td className="py-3 text-center">
+                                <span className={`inline-block px-1.5 py-0.5 text-[0.58rem] uppercase tracking-wider rounded-xs font-medium ${
+                                  coll.isActive !== false ? "text-emerald-800 bg-emerald-50 border border-emerald-200" : "text-muted bg-border/20 border border-border"
+                                }`}>
+                                  {coll.isActive !== false ? "Active" : "Hidden"}
+                                </span>
+                              </td>
+                              <td className="py-3 text-right">
+                                <div className="flex justify-end gap-3.5">
+                                  <button
+                                    onClick={() => handleEditCollectionClick(coll)}
+                                    className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-ink hover:text-bronze cursor-pointer transition-colors duration-150"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteCollection(coll.slug)}
+                                    className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-red-700 hover:text-red-950 cursor-pointer transition-colors duration-150"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* 3. SUBCATEGORIES (ATELIER TYPES) SUBTAB */}
+              {taxSubTab === "subcategories" && (
+                <div className="space-y-8">
+                  {/* Subcategory editor form */}
+                  <div className="bg-surface p-5 sm:p-6 border border-border/60 rounded-[2px]">
+                    <h4 className="font-display font-light text-sm text-ink uppercase tracking-wider mb-4">
+                      {editingSubcategorySlug ? `Edit Atelier Type: ${editingSubcategorySlug}` : "Add New Atelier Type"}
+                    </h4>
+                    <form onSubmit={handleSubcategorySubmit} className="space-y-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Type Name</label>
+                          <input
+                            type="text"
+                            name="name"
+                            value={subcategoryFormData.name}
+                            onChange={handleSubcategoryInputChange}
+                            placeholder="e.g., Table Lamp"
+                            required
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Slug ID</label>
+                          <input
+                            type="text"
+                            name="slug"
+                            value={subcategoryFormData.slug}
+                            onChange={handleSubcategoryInputChange}
+                            placeholder="e.g., table-lamp"
+                            required
+                            disabled={!!editingSubcategorySlug}
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] disabled:bg-border/20 disabled:text-muted"
+                          />
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Parent Category</label>
+                          <select
+                            name="category"
+                            value={subcategoryFormData.category}
+                            onChange={handleSubcategoryInputChange}
+                            required
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          >
+                            <option value="">-- Select Category --</option>
+                            {categories.map((cat) => (
+                              <option key={cat.slug} value={cat.slug}>
+                                {cat.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                        <div className="sm:col-span-2">
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Icon / Backdrop Image</label>
+                          <div
+                            onDragOver={(e) => { e.preventDefault(); setIsDraggingSub(true); }}
+                            onDragLeave={() => setIsDraggingSub(false)}
+                            onDrop={(e) => { e.preventDefault(); setIsDraggingSub(false); if (e.dataTransfer.files?.[0]) uploadSubImage(e.dataTransfer.files[0]); }}
+                            className={`border border-dashed p-4 text-center rounded-[2px] transition-all flex flex-col items-center justify-center min-h-[90px] cursor-pointer ${
+                              isDraggingSub ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/60 bg-white"
+                            }`}
+                            onClick={() => document.getElementById("sub-file-input").click()}
+                          >
+                            <input
+                              type="file"
+                              id="sub-file-input"
+                              accept="image/*"
+                              onChange={(e) => { if (e.target.files?.[0]) uploadSubImage(e.target.files[0]); }}
+                              className="hidden"
+                            />
+                            {isUploadingSubImage ? (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-4 h-4 border border-bronze border-t-transparent rounded-full animate-spin" />
+                                <span className="font-body text-[0.65rem] text-muted uppercase">Uploading image...</span>
+                              </div>
+                            ) : subcategoryFormData.image ? (
+                              <div className="flex items-center gap-3 w-full text-left">
+                                <img
+                                  src={subcategoryFormData.image}
+                                  alt="Preview"
+                                  className="w-14 h-10 object-cover border border-border bg-surface shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-body text-[0.68rem] text-ink font-medium block truncate">File Uploaded</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setSubcategoryFormData(prev => ({ ...prev, image: "" })); }}
+                                    className="bg-transparent border-0 font-body text-[0.55rem] tracking-wider uppercase text-red-650 hover:text-red-800 cursor-pointer p-0 mt-0.5"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="font-body text-[0.7rem] text-ink font-medium">Drag & Drop or Click to Upload</span>
+                                <span className="font-body text-[0.55rem] text-muted uppercase">JPG, PNG, WEBP files</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div>
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1 font-medium">Order Rank</label>
+                          <input
+                            type="number"
+                            name="order"
+                            value={subcategoryFormData.order}
+                            onChange={handleSubcategoryInputChange}
+                            placeholder="0"
+                            className="w-full bg-white border border-border px-3 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px]"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <input
+                          type="checkbox"
+                          name="isActive"
+                          id="subIsActive"
+                          checked={subcategoryFormData.isActive}
+                          onChange={handleSubcategoryInputChange}
+                          className="accent-bronze"
+                        />
+                        <label htmlFor="subIsActive" className="font-body text-xs text-ink select-none cursor-pointer">Visible on Storefront</label>
+                      </div>
+
+                      {subcategoryFormError && (
+                        <div className="text-red-650 font-body text-xs font-medium bg-red-50 border border-red-200 px-3 py-2.5 rounded-sm">
+                          {subcategoryFormError}
+                        </div>
+                      )}
+
+                      {subcategoryFormSuccess && (
+                        <div className="text-emerald-800 font-body text-xs font-medium bg-emerald-50 border border-emerald-250/20 px-3 py-2.5 rounded-sm">
+                          {subcategoryFormSuccess}
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end gap-3 pt-2">
+                        {editingSubcategorySlug && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSubcategorySlug(null);
+                              setSubcategoryFormData({
+                                slug: "",
+                                name: "",
+                                category: categories[0]?.slug || "",
+                                image: "",
+                                order: 0,
+                                isActive: true,
+                              });
+                            }}
+                            className="bg-transparent hover:bg-border/30 text-muted border border-border/80 font-body text-[0.62rem] tracking-wider uppercase px-5 py-2 cursor-pointer transition-colors duration-200"
+                          >
+                            Cancel
+                          </button>
+                        )}
+                        <button
+                          type="submit"
+                          className="bg-ink hover:bg-bronze text-background border-0 font-body text-[0.62rem] tracking-wider uppercase px-5 py-2 cursor-pointer transition-colors duration-200"
+                        >
+                          {editingSubcategorySlug ? "Save Changes" : "Create Atelier Type"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
+                  {/* Subcategories List */}
+                  {subcategoriesLoading ? (
+                    <div className="text-center text-muted font-body text-xs py-8 animate-pulse">Loading Atelier Types...</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-left font-body text-xs text-ink">
+                        <thead>
+                          <tr className="border-b border-border text-[0.65rem] tracking-[0.15em] uppercase text-muted font-normal pb-2">
+                            <th className="pb-3 font-normal">Backdrop</th>
+                            <th className="pb-3 font-normal">Name</th>
+                            <th className="pb-3 font-normal">Slug</th>
+                            <th className="pb-3 font-normal">Parent Category</th>
+                            <th className="pb-3 font-normal text-center">Rank</th>
+                            <th className="pb-3 font-normal text-center">Status</th>
+                            <th className="pb-3 font-normal text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border/40">
+                          {subcategories.map((sub) => (
+                            <tr key={sub.slug} className="hover:bg-surface/50 transition-colors">
+                              <td className="py-3">
+                                {sub.image ? (
+                                  <img
+                                    src={sub.image}
+                                    alt={sub.name}
+                                    className="w-10 h-8 object-cover border border-border/50"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-8 bg-border/20 border border-dashed border-border flex items-center justify-center text-[0.55rem] text-muted italic">
+                                    No Image
+                                  </div>
+                                )}
+                              </td>
+                              <td className="py-3 font-medium">{sub.name}</td>
+                              <td className="py-3 text-[0.7rem] font-mono text-muted">{sub.slug}</td>
+                              <td className="py-3 text-[0.7rem] text-muted">{sub.category}</td>
+                              <td className="py-3 text-center">{sub.order || 0}</td>
+                              <td className="py-3 text-center">
+                                <span className={`inline-block px-1.5 py-0.5 text-[0.58rem] uppercase tracking-wider rounded-xs font-medium ${
+                                  sub.isActive !== false ? "text-emerald-800 bg-emerald-50 border border-emerald-200" : "text-muted bg-border/20 border border-border"
+                                }`}>
+                                  {sub.isActive !== false ? "Active" : "Hidden"}
+                                </span>
+                              </td>
+                              <td className="py-3 text-right">
+                                <div className="flex justify-end gap-3.5">
+                                  <button
+                                    onClick={() => handleEditSubcategoryClick(sub)}
+                                    className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-ink hover:text-bronze cursor-pointer transition-colors duration-150"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteSubcategory(sub.slug)}
+                                    className="bg-transparent border-0 font-body text-[0.62rem] tracking-wider uppercase text-red-700 hover:text-red-950 cursor-pointer transition-colors duration-150"
+                                  >
+                                    Delete
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
@@ -1986,7 +3435,10 @@ const AdminPage = () => {
                   { id: "promo", label: "Editorial Promotion" },
                   { id: "faqs", label: "Help FAQs List" },
                   { id: "team", label: "Meet The Team List" },
-                  { id: "checkout", label: "Checkout & Taxes" }
+                  { id: "about_stats", label: "About Page Stats" },
+                  { id: "about_milestones", label: "About Milestones" },
+                  { id: "checkout", label: "Checkout & Taxes" },
+                  { id: "shop_the_look", label: "Interactive Showcase (Shop the Look)" }
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -2075,13 +3527,53 @@ const AdminPage = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Background Image URL</label>
-                          <input
-                            type="text"
-                            value={cmsHero.image}
-                            onChange={(e) => setCmsHero({ ...cmsHero, image: e.target.value })}
-                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze focus:ring-1 focus:ring-bronze/10 rounded-sm"
-                          />
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Background Image</label>
+                          <div
+                            onDragOver={(e) => { e.preventDefault(); setIsDraggingCmsHero(true); }}
+                            onDragLeave={() => setIsDraggingCmsHero(false)}
+                            onDrop={(e) => { e.preventDefault(); setIsDraggingCmsHero(false); if (e.dataTransfer.files?.[0]) uploadCmsHeroImage(e.dataTransfer.files[0]); }}
+                            className={`border border-dashed p-4 text-center rounded-[2px] transition-all flex flex-col items-center justify-center min-h-[90px] cursor-pointer ${
+                              isDraggingCmsHero ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/60 bg-white"
+                            }`}
+                            onClick={() => document.getElementById("hero-cms-file-input").click()}
+                          >
+                            <input
+                              type="file"
+                              id="hero-cms-file-input"
+                              accept="image/*"
+                              onChange={(e) => { if (e.target.files?.[0]) uploadCmsHeroImage(e.target.files[0]); }}
+                              className="hidden"
+                            />
+                            {isUploadingCmsHeroImage ? (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-4 h-4 border border-bronze border-t-transparent rounded-full animate-spin" />
+                                <span className="font-body text-[0.55rem] text-muted uppercase">Uploading background...</span>
+                              </div>
+                            ) : cmsHero.image ? (
+                              <div className="flex items-center gap-3 w-full text-left">
+                                <img
+                                  src={cmsHero.image}
+                                  alt="Hero backdrop"
+                                  className="w-14 h-10 object-cover border border-border bg-surface shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-body text-[0.68rem] text-ink font-medium block truncate">Uploaded</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setCmsHero(prev => ({ ...prev, image: "" })); }}
+                                    className="bg-transparent border-0 font-body text-[0.55rem] tracking-wider uppercase text-red-650 hover:text-red-800 cursor-pointer p-0 mt-0.5"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="font-body text-[0.7rem] text-ink font-medium">Drag & Drop or Click to Upload</span>
+                                <span className="font-body text-[0.55rem] text-muted uppercase">JPG, PNG, WEBP files</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -2166,13 +3658,53 @@ const AdminPage = () => {
                           />
                         </div>
                         <div className="space-y-2">
-                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Promo Banner Image URL</label>
-                          <input
-                            type="text"
-                            value={cmsPromo.image}
-                            onChange={(e) => setCmsPromo({ ...cmsPromo, image: e.target.value })}
-                            className="w-full bg-background border border-border px-4 py-3 font-body text-sm text-ink outline-none focus:border-bronze rounded-sm"
-                          />
+                          <label className="font-body text-[0.58rem] tracking-wider uppercase text-muted block">Promo Banner Image</label>
+                          <div
+                            onDragOver={(e) => { e.preventDefault(); setIsDraggingCmsPromo(true); }}
+                            onDragLeave={() => setIsDraggingCmsPromo(false)}
+                            onDrop={(e) => { e.preventDefault(); setIsDraggingCmsPromo(false); if (e.dataTransfer.files?.[0]) uploadCmsPromoImage(e.dataTransfer.files[0]); }}
+                            className={`border border-dashed p-4 text-center rounded-[2px] transition-all flex flex-col items-center justify-center min-h-[90px] cursor-pointer ${
+                              isDraggingCmsPromo ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/60 bg-white"
+                            }`}
+                            onClick={() => document.getElementById("promo-cms-file-input").click()}
+                          >
+                            <input
+                              type="file"
+                              id="promo-cms-file-input"
+                              accept="image/*"
+                              onChange={(e) => { if (e.target.files?.[0]) uploadCmsPromoImage(e.target.files[0]); }}
+                              className="hidden"
+                            />
+                            {isUploadingCmsPromoImage ? (
+                              <div className="flex flex-col items-center gap-1.5">
+                                <div className="w-4 h-4 border border-bronze border-t-transparent rounded-full animate-spin" />
+                                <span className="font-body text-[0.55rem] text-muted uppercase">Uploading image...</span>
+                              </div>
+                            ) : cmsPromo.image ? (
+                              <div className="flex items-center gap-3 w-full text-left">
+                                <img
+                                  src={cmsPromo.image}
+                                  alt="Promo banner backdrop"
+                                  className="w-14 h-10 object-cover border border-border bg-surface shrink-0"
+                                />
+                                <div className="min-w-0 flex-1">
+                                  <span className="font-body text-[0.68rem] text-ink font-medium block truncate">Uploaded</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setCmsPromo(prev => ({ ...prev, image: "" })); }}
+                                    className="bg-transparent border-0 font-body text-[0.55rem] tracking-wider uppercase text-red-650 hover:text-red-800 cursor-pointer p-0 mt-0.5"
+                                  >
+                                    Remove
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex flex-col items-center gap-1">
+                                <span className="font-body text-[0.7rem] text-ink font-medium">Drag & Drop or Click to Upload</span>
+                                <span className="font-body text-[0.55rem] text-muted uppercase">JPG, PNG, WEBP files</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
 
@@ -2291,21 +3823,40 @@ const AdminPage = () => {
                             </div>
 
                             <div className="col-span-1 space-y-2">
-                              <div className="w-24 h-24 border border-border overflow-hidden bg-background rounded-sm flex items-center justify-center p-1">
-                                <img src={member.image || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&q=80"} alt={member.name} className="w-full h-full object-cover object-top" />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Image URL</label>
+                              <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Portrait Image</label>
+                              <div
+                                onDragOver={(e) => { e.preventDefault(); }}
+                                onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files?.[0]) uploadCmsTeamImage(e.dataTransfer.files[0], idx); }}
+                                className="border border-dashed border-border hover:border-bronze/60 bg-white p-3 text-center rounded-sm transition-all flex flex-col items-center justify-center min-h-[100px] cursor-pointer"
+                                onClick={() => document.getElementById(`team-file-input-${idx}`).click()}
+                              >
                                 <input
-                                  type="text"
-                                  value={member.image || ""}
-                                  onChange={(e) => {
-                                    const updated = [...cmsTeam];
-                                    updated[idx].image = e.target.value;
-                                    setCmsTeam(updated);
-                                  }}
-                                  className="w-full bg-white border border-border px-2 py-1.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                  type="file"
+                                  id={`team-file-input-${idx}`}
+                                  accept="image/*"
+                                  onChange={(e) => { if (e.target.files?.[0]) uploadCmsTeamImage(e.target.files[0], idx); }}
+                                  className="hidden"
                                 />
+                                {cmsTeamUploadingIdx === idx ? (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <div className="w-4 h-4 border border-bronze border-t-transparent rounded-full animate-spin" />
+                                    <span className="font-body text-[0.55rem] text-muted uppercase">Uploading...</span>
+                                  </div>
+                                ) : member.image ? (
+                                  <div className="flex flex-col items-center gap-2">
+                                    <img
+                                      src={member.image}
+                                      alt="Portrait preview"
+                                      className="w-16 h-16 object-cover rounded-full border border-border"
+                                    />
+                                    <span className="font-body text-[0.55rem] text-muted uppercase hover:text-red-750" onClick={(e) => { e.stopPropagation(); const updated = [...cmsTeam]; updated[idx].image = ""; setCmsTeam(updated); }}>Remove</span>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    <span className="font-body text-[0.62rem] text-ink font-medium">Upload Image</span>
+                                    <span className="font-body text-[0.5rem] text-muted uppercase">Drag or Click</span>
+                                  </div>
+                                )}
                               </div>
                             </div>
 
@@ -2449,10 +4000,824 @@ const AdminPage = () => {
                       </button>
                     </form>
                   )}
+
+                  {/* SUBTAB 6: ABOUT STATS */}
+                  {cmsSubTab === "about_stats" && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                        <h3 className="font-display font-light text-lg text-ink m-0">About Page Statistics</h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newStat = { key: `custom_${Date.now()}`, number: "0", label: "Stat Title", desc: "Short description", source: "manual" };
+                            setCmsAboutStats([...cmsAboutStats, newStat]);
+                          }}
+                          className="px-4 py-2 border border-bronze text-bronze hover:bg-bronze hover:text-white bg-transparent font-body text-[0.58rem] tracking-wider uppercase cursor-pointer transition-colors duration-200 rounded-[2px]"
+                        >
+                          + Add Custom Stat
+                        </button>
+                      </div>
+
+                      {/* Dynamic stats info */}
+                      <div className="border border-bronze/30 bg-bronze/5 p-4 rounded-[2px] space-y-2">
+                        <div className="flex items-center gap-2">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-bronze flex-shrink-0">
+                            <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+                          </svg>
+                          <span className="font-body font-medium text-[0.7rem] tracking-wider uppercase text-bronze">Auto-Computed Stats</span>
+                        </div>
+                        <p className="font-body text-[0.75rem] text-muted leading-relaxed m-0">
+                          The following stats are <strong>automatically calculated</strong> from your database and require no manual input:
+                        </p>
+                        <ul className="font-body text-[0.72rem] text-ink/70 leading-relaxed m-0 pl-4 space-y-0.5" style={{ listStyle: "disc" }}>
+                          <li><strong>Original Designs</strong> — Total product count</li>
+                          <li><strong>Happy Homes</strong> — Delivered orders / unique customers</li>
+                          <li><strong>Average Rating</strong> — Aggregated from all approved reviews</li>
+                          <li><strong>Categories</strong> — Active category count</li>
+                        </ul>
+                        <p className="font-body text-[0.68rem] text-muted leading-relaxed m-0 mt-1">
+                          Use the <strong>"+ Add Custom Stat"</strong> button above to add extra stats that are manually managed (e.g., "100% In-House Design").
+                        </p>
+                      </div>
+
+                      {/* Manual stats cards */}
+                      {cmsAboutStats.filter(s => s.source === "manual").length > 0 && (
+                        <div className="space-y-4">
+                          <h4 className="font-display font-light text-sm text-ink m-0">Custom Manual Stats</h4>
+                          {cmsAboutStats.filter(s => s.source === "manual").map((stat, idx) => {
+                            const realIdx = cmsAboutStats.findIndex(s => s === stat);
+                            return (
+                              <div key={realIdx} className="border border-border p-4 bg-[#FDFBF7] space-y-4 relative grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCmsAboutStats(cmsAboutStats.filter((_, i) => i !== realIdx));
+                                  }}
+                                  className="absolute top-3 right-3 text-red-600 hover:text-red-800 font-body text-[0.62rem] tracking-widest uppercase border-0 bg-transparent cursor-pointer"
+                                >
+                                  Remove
+                                </button>
+
+                                <div className="md:col-span-3 pb-1 border-b border-border/40 flex items-center gap-2">
+                                  <span className="inline-block px-2 py-0.5 bg-bronze/10 text-bronze text-[0.5rem] tracking-widest uppercase font-body rounded-sm">Manual</span>
+                                  <span className="font-display font-light text-xs text-bronze leading-none">Custom Stat #{idx + 1}</span>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Big Stat Value (e.g. 100%)</label>
+                                  <input
+                                    type="text"
+                                    value={stat.number || ""}
+                                    onChange={(e) => {
+                                      const updated = [...cmsAboutStats];
+                                      updated[realIdx].number = e.target.value;
+                                      setCmsAboutStats(updated);
+                                    }}
+                                    className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                    required
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Label / Title</label>
+                                  <input
+                                    type="text"
+                                    value={stat.label || ""}
+                                    onChange={(e) => {
+                                      const updated = [...cmsAboutStats];
+                                      updated[realIdx].label = e.target.value;
+                                      setCmsAboutStats(updated);
+                                    }}
+                                    className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                    required
+                                  />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Brief Description</label>
+                                  <input
+                                    type="text"
+                                    value={stat.desc || ""}
+                                    onChange={(e) => {
+                                      const updated = [...cmsAboutStats];
+                                      updated[realIdx].desc = e.target.value;
+                                      setCmsAboutStats(updated);
+                                    }}
+                                    className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                    required
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveCmsKey("about_stats", cmsAboutStats)}
+                        className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase px-8 py-3.5 border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                      >
+                        Save Custom Stats
+                      </button>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 7: ABOUT MILESTONES */}
+                  {cmsSubTab === "about_milestones" && (
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center pb-2 border-b border-border/50">
+                        <h3 className="font-display font-light text-lg text-ink m-0">About Page Milestones (Our Journey)</h3>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newMilestone = { year: "2026", event: "Milestone Event", desc: "Short description of event." };
+                            setCmsAboutMilestones([...cmsAboutMilestones, newMilestone]);
+                          }}
+                          className="px-4 py-2 border border-bronze text-bronze hover:bg-bronze hover:text-white bg-transparent font-body text-[0.58rem] tracking-wider uppercase cursor-pointer transition-colors duration-200 rounded-[2px]"
+                        >
+                          + Add Milestone
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        {cmsAboutMilestones.map((m, idx) => (
+                          <div key={idx} className="border border-border p-4 bg-[#FDFBF7] space-y-4 relative grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setCmsAboutMilestones(cmsAboutMilestones.filter((_, i) => i !== idx));
+                              }}
+                              className="absolute top-3 right-3 text-red-600 hover:text-red-800 font-body text-[0.62rem] tracking-widest uppercase border-0 bg-transparent cursor-pointer"
+                            >
+                              Remove
+                            </button>
+
+                            <div className="md:col-span-3 pb-1 border-b border-border/40">
+                              <span className="font-display font-light text-xs text-bronze leading-none">Milestone #{idx + 1}</span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Year (e.g. 2024)</label>
+                              <input
+                                type="text"
+                                value={m.year || ""}
+                                onChange={(e) => {
+                                  const updated = [...cmsAboutMilestones];
+                                  updated[idx].year = e.target.value;
+                                  setCmsAboutMilestones(updated);
+                                }}
+                                className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                required
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Event / Achievement</label>
+                              <input
+                                type="text"
+                                value={m.event || ""}
+                                onChange={(e) => {
+                                  const updated = [...cmsAboutMilestones];
+                                  updated[idx].event = e.target.value;
+                                  setCmsAboutMilestones(updated);
+                                }}
+                                className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                required
+                              />
+                            </div>
+
+                            <div className="space-y-1">
+                              <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Milestone Description</label>
+                              <input
+                                type="text"
+                                value={m.desc || ""}
+                                onChange={(e) => {
+                                  const updated = [...cmsAboutMilestones];
+                                  updated[idx].desc = e.target.value;
+                                  setCmsAboutMilestones(updated);
+                                }}
+                                className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                required
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveCmsKey("about_milestones", cmsAboutMilestones)}
+                        className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase px-8 py-3.5 border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                      >
+                        Save All Milestones
+                      </button>
+                    </div>
+                  )}
+
+                  {/* SUBTAB 8: INTERACTIVE SHOWCASE */}
+                  {cmsSubTab === "shop_the_look" && (
+                    <div className="space-y-8 animate-fadeIn">
+                      <div className="pb-3 border-b border-border/60 flex justify-between items-center">
+                        <div>
+                          <h3 className="font-display font-light text-base text-ink m-0 uppercase tracking-widest">
+                            Interactive Showcase Config
+                          </h3>
+                          <p className="font-body text-[0.68rem] text-muted m-0 mt-1">
+                            Set up hotspots on the main design scene image.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                        {/* Left Column: Visual Placement Map */}
+                        <div className="lg:col-span-6 space-y-4">
+                          <span className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-semibold">
+                            Visual Builder (Click image to reposition selected hotspot)
+                          </span>
+                          
+                          <div 
+                            className="relative w-full aspect-[4/3] rounded-lg overflow-hidden border border-border/80 shadow-sm cursor-crosshair bg-surface"
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              const x = ((e.clientX - rect.left) / rect.width) * 100;
+                              const y = ((e.clientY - rect.top) / rect.height) * 100;
+                              
+                              const updated = [...(cmsShopTheLook.hotspots || [])];
+                              if (updated[selectedHotspotIdx]) {
+                                updated[selectedHotspotIdx].left = `${Math.round(x)}%`;
+                                updated[selectedHotspotIdx].top = `${Math.round(y)}%`;
+                                setCmsShopTheLook({ ...cmsShopTheLook, hotspots: updated });
+                              }
+                            }}
+                          >
+                            <img
+                              src={cmsShopTheLook.image || "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=1400&q=85"}
+                              alt="Showcase backdrop preview"
+                              className="absolute inset-0 w-full h-full object-cover select-none"
+                              draggable="false"
+                            />
+                            
+                            {/* Overlay Hotspots */}
+                            {(cmsShopTheLook.hotspots || []).map((spot, idx) => (
+                              <div
+                                key={spot.id || idx}
+                                className="absolute -translate-x-1/2 -translate-y-1/2 z-10"
+                                style={{ top: spot.top, left: spot.left }}
+                              >
+                                <span className={`absolute inline-flex h-8 w-8 rounded-full bg-bronze/45 opacity-75 animate-ping -left-1.5 -top-1.5 transition-all duration-300 ${
+                                  selectedHotspotIdx === idx ? "scale-125" : "hidden"
+                                }`} />
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedHotspotIdx(idx);
+                                  }}
+                                  className={`relative inline-flex h-7 w-7 rounded-full border items-center justify-center font-body text-[0.68rem] font-bold cursor-pointer shadow-md transition-all duration-200 ${
+                                    selectedHotspotIdx === idx
+                                      ? "bg-bronze border-white text-white scale-110"
+                                      : "bg-white border-border text-bronze hover:scale-105"
+                                  }`}
+                                >
+                                  {idx + 1}
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                          
+                          <div className="p-4 bg-background border border-border/80 rounded-md font-body text-[0.68rem] text-muted leading-relaxed">
+                            <span className="font-semibold text-ink block mb-1">How to position hotspots:</span>
+                            1. Select a hotspot card from the right column or click on its number above.<br />
+                            2. Click anywhere on the image preview to automatically reposition it there.
+                          </div>
+                        </div>
+
+                        {/* Right Column: Editor Form Fields */}
+                        <div className="lg:col-span-6 space-y-6">
+                          {/* Image Upload Box */}
+                          <div className="space-y-2">
+                            <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">Showcase Backdrop Image</label>
+                            
+                            <div
+                              onDragOver={(e) => { e.preventDefault(); setIsDraggingCmsShowcase(true); }}
+                              onDragLeave={() => setIsDraggingCmsShowcase(false)}
+                              onDrop={async (e) => {
+                                e.preventDefault();
+                                setIsDraggingCmsShowcase(false);
+                                if (e.dataTransfer.files?.length) {
+                                  await uploadCmsShowcaseImage(e.dataTransfer.files[0]);
+                                }
+                              }}
+                              className={`border border-dashed p-6 text-center transition-all cursor-pointer rounded-sm flex flex-col items-center justify-center min-h-[120px] bg-background/50 ${
+                                isDraggingCmsShowcase ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/50"
+                              }`}
+                            >
+                              {isUploadingCmsShowcaseImage ? (
+                                <div className="flex flex-col items-center gap-2">
+                                  <div className="w-5 h-5 border border-bronze border-t-transparent rounded-full animate-spin" />
+                                  <span className="font-body text-[0.62rem] text-muted tracking-wider uppercase">Uploading...</span>
+                                </div>
+                              ) : cmsShopTheLook.image ? (
+                                <div className="relative w-full max-h-[100px] overflow-hidden flex items-center justify-center">
+                                  <img
+                                    src={cmsShopTheLook.image}
+                                    alt="Showcase backdrop preview"
+                                    className="max-h-[100px] rounded-sm object-contain"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setCmsShopTheLook(prev => ({ ...prev, image: "" }))}
+                                    className="absolute top-1 right-1 bg-red-600 text-white border-0 cursor-pointer rounded-full p-1 hover:bg-red-700 transition-colors"
+                                  >
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                                    </svg>
+                                  </button>
+                                </div>
+                              ) : (
+                                <>
+                                  <svg className="w-6 h-6 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                  </svg>
+                                  <span className="font-body text-[0.62rem] text-muted block tracking-wider uppercase mb-1">Drag image file here or</span>
+                                  <input
+                                    type="file"
+                                    id="cms-showcase-file"
+                                    onChange={async (e) => {
+                                      if (e.target.files?.length) {
+                                        await uploadCmsShowcaseImage(e.target.files[0]);
+                                      }
+                                    }}
+                                    className="hidden"
+                                    accept="image/*"
+                                  />
+                                  <label
+                                    htmlFor="cms-showcase-file"
+                                    className="font-body text-[0.62rem] text-bronze cursor-pointer font-semibold underline hover:text-ink tracking-wider uppercase"
+                                  >
+                                    Browse Files
+                                  </label>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Text Fields */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-1.5">
+                              <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">Showcase Title</label>
+                              <input
+                                type="text"
+                                value={cmsShopTheLook.title || ""}
+                                onChange={(e) => setCmsShopTheLook({ ...cmsShopTheLook, title: e.target.value })}
+                                className="w-full bg-background border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                required
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">CTA Button Text</label>
+                              <input
+                                type="text"
+                                value={cmsShopTheLook.buttonText || ""}
+                                onChange={(e) => setCmsShopTheLook({ ...cmsShopTheLook, buttonText: e.target.value })}
+                                className="w-full bg-background border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                required
+                              />
+                            </div>
+                            <div className="col-span-2 space-y-1.5">
+                              <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">Showcase Subtitle</label>
+                              <textarea
+                                value={cmsShopTheLook.subtitle || ""}
+                                onChange={(e) => setCmsShopTheLook({ ...cmsShopTheLook, subtitle: e.target.value })}
+                                className="w-full bg-background border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm min-h-[60px]"
+                                required
+                              />
+                            </div>
+                            <div className="col-span-2 space-y-1.5">
+                              <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">CTA Button Redirect Link</label>
+                              <input
+                                type="text"
+                                value={cmsShopTheLook.buttonLink || ""}
+                                onChange={(e) => setCmsShopTheLook({ ...cmsShopTheLook, buttonLink: e.target.value })}
+                                className="w-full bg-background border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                required
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Hotspots Settings List */}
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center border-b border-border/40 pb-2">
+                          <span className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-semibold">
+                            Hotspot Points list
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newSpot = {
+                                id: "hotspot_" + Date.now(),
+                                top: "50%",
+                                left: "50%",
+                                matchName: "",
+                                displayName: "New Hotspot",
+                                productId: "",
+                                fallback: { name: "", price: 0, image: "" }
+                              };
+                              const updated = [...(cmsShopTheLook.hotspots || [])];
+                              updated.push(newSpot);
+                              setCmsShopTheLook({ ...cmsShopTheLook, hotspots: updated });
+                              setSelectedHotspotIdx(updated.length - 1);
+                            }}
+                            className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.55rem] tracking-wider uppercase px-4 py-2 border-0 cursor-pointer transition-colors duration-200 rounded-[2px]"
+                          >
+                            + Add Hotspot Point
+                          </button>
+                        </div>
+
+                        <div className="space-y-4 max-h-[420px] overflow-y-auto pr-1">
+                          {(cmsShopTheLook.hotspots || []).map((spot, idx) => (
+                            <div
+                              key={spot.id || idx}
+                              onClick={() => setSelectedHotspotIdx(idx)}
+                              className={`border p-4 bg-[#FDFBF7] space-y-4 relative grid grid-cols-1 md:grid-cols-4 gap-4 transition-all duration-300 rounded-[3px] cursor-pointer ${
+                                selectedHotspotIdx === idx ? "border-bronze shadow-xs" : "border-border/60"
+                              }`}
+                            >
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const updated = (cmsShopTheLook.hotspots || []).filter((_, i) => i !== idx);
+                                  setCmsShopTheLook({ ...cmsShopTheLook, hotspots: updated });
+                                  setSelectedHotspotIdx(Math.max(0, idx - 1));
+                                }}
+                                className="absolute top-3.5 right-3.5 text-red-600 hover:text-red-800 font-body text-[0.62rem] tracking-widest uppercase border-0 bg-transparent cursor-pointer"
+                              >
+                                Remove
+                              </button>
+
+                              <div className="md:col-span-4 pb-1 border-b border-border/40 flex items-center gap-2">
+                                <span className={`flex items-center justify-center w-5 h-5 rounded-full font-body text-[0.68rem] font-bold text-white ${
+                                  selectedHotspotIdx === idx ? "bg-bronze" : "bg-muted"
+                                }`}>
+                                  {idx + 1}
+                                </span>
+                                <span className="font-display font-light text-xs text-bronze leading-none">
+                                  Config: {spot.displayName || "New Hotspot"}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Display Label</label>
+                                <input
+                                  type="text"
+                                  value={spot.displayName || ""}
+                                  onChange={(e) => {
+                                    const updated = [...cmsShopTheLook.hotspots];
+                                    updated[idx].displayName = e.target.value;
+                                    setCmsShopTheLook({ ...cmsShopTheLook, hotspots: updated });
+                                  }}
+                                  className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                  required
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Position: Top (%)</label>
+                                <input
+                                  type="text"
+                                  value={spot.top || ""}
+                                  onChange={(e) => {
+                                    const updated = [...cmsShopTheLook.hotspots];
+                                    updated[idx].top = e.target.value;
+                                    setCmsShopTheLook({ ...cmsShopTheLook, hotspots: updated });
+                                  }}
+                                  className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                  required
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Position: Left (%)</label>
+                                <input
+                                  type="text"
+                                  value={spot.left || ""}
+                                  onChange={(e) => {
+                                    const updated = [...cmsShopTheLook.hotspots];
+                                    updated[idx].left = e.target.value;
+                                    setCmsShopTheLook({ ...cmsShopTheLook, hotspots: updated });
+                                  }}
+                                  className="w-full bg-white border border-border px-3 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                  required
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+
+                              <div className="space-y-1">
+                                <label className="font-body text-[0.55rem] uppercase tracking-wider text-muted block">Featured Product</label>
+                                <select
+                                  value={spot.productId || ""}
+                                  onChange={(e) => {
+                                    const p = products.find(prod => String(prod.id) === e.target.value);
+                                    const updated = [...cmsShopTheLook.hotspots];
+                                    if (p) {
+                                      updated[idx].productId = String(p.id);
+                                      updated[idx].matchName = p.name;
+                                      updated[idx].fallback = {
+                                        name: p.name,
+                                        price: p.price,
+                                        image: p.images?.[0] || p.image
+                                      };
+                                    } else {
+                                      updated[idx].productId = "";
+                                      updated[idx].matchName = "";
+                                      updated[idx].fallback = { name: "", price: 0, image: "" };
+                                    }
+                                    setCmsShopTheLook({ ...cmsShopTheLook, hotspots: updated });
+                                  }}
+                                  className="w-full bg-white border border-border px-2 py-2 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                                  required
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <option value="">-- Choose Product --</option>
+                                  {products.map(p => (
+                                    <option key={p.id} value={p.id}>{p.name} (ID: {p.id})</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleSaveCmsKey("shop_the_look", cmsShopTheLook)}
+                        className="bg-ink hover:bg-bronze text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase px-8 py-3.5 border-0 cursor-pointer transition-colors duration-250 rounded-[2px]"
+                      >
+                        Save Interactive Showcase Settings
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
+
+          {/* SHOWCASES PANEL */}
+          {activePanel === "showcases" && (
+                <div className="space-y-8 animate-fadeIn text-ink">
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                    
+                    {/* Left Column: Form to Add Showcase */}
+                    <div className="lg:col-span-5 bg-white border border-border p-6 rounded-md space-y-6">
+                      <div className="pb-3 border-b border-border/60">
+                        <h3 className="font-display font-light text-base text-ink m-0 uppercase tracking-widest">
+                          Add New Showcase
+                        </h3>
+                        <p className="font-body text-[0.68rem] text-muted m-0 mt-1">
+                          Share a styled customer home photo.
+                        </p>
+                      </div>
+
+                      {showcaseFormError && (
+                        <div className="p-3.5 bg-red-50 border border-red-200 text-red-600 font-body text-xs rounded-sm">
+                          {showcaseFormError}
+                        </div>
+                      )}
+
+                      {showcaseFormSuccess && (
+                        <div className="p-3.5 bg-green-50 border border-green-200 text-green-700 font-body text-xs rounded-sm">
+                          {showcaseFormSuccess}
+                        </div>
+                      )}
+
+                      <form onSubmit={handleShowcaseSubmit} className="space-y-5">
+                        {/* Creator Handle */}
+                        <div className="space-y-1.5">
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">
+                            Creator Social Handle
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. @jules_minimalist"
+                            value={showcaseFormData.handle}
+                            onChange={(e) => setShowcaseFormData(prev => ({ ...prev, handle: e.target.value }))}
+                            className="w-full bg-white border border-border px-3.5 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                            required
+                          />
+                        </div>
+
+                        {/* Space Title */}
+                        <div className="space-y-1.5">
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">
+                            Room / Space Title
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Bedroom Suite"
+                            value={showcaseFormData.space}
+                            onChange={(e) => setShowcaseFormData(prev => ({ ...prev, space: e.target.value }))}
+                            className="w-full bg-white border border-border px-3.5 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                            required
+                          />
+                        </div>
+
+                        {/* Select Product */}
+                        <div className="space-y-1.5">
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">
+                            Featured Product
+                          </label>
+                          <select
+                            value={showcaseFormData.productId}
+                            onChange={(e) => {
+                              const p = products.find(prod => String(prod.id) === e.target.value);
+                              if (p) {
+                                setShowcaseFormData(prev => ({
+                                  ...prev,
+                                  productId: String(p.id),
+                                  productName: p.name
+                                }));
+                              } else {
+                                setShowcaseFormData(prev => ({
+                                  ...prev,
+                                  productId: "",
+                                  productName: ""
+                                }));
+                              }
+                            }}
+                            className="w-full bg-white border border-border px-3.5 py-2.5 font-body text-xs text-ink outline-none focus:border-bronze rounded-sm"
+                            required
+                          >
+                            <option value="">-- Select Catalog Product --</option>
+                            {products.map(p => (
+                              <option key={p.id} value={p.id}>
+                                {p.name} (ID: {p.id})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Image Upload */}
+                        <div className="space-y-1.5">
+                          <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block font-medium">
+                            Showcase Image
+                          </label>
+                          
+                          <div
+                            onDragOver={(e) => { e.preventDefault(); setIsDraggingShowcase(true); }}
+                            onDragLeave={() => setIsDraggingShowcase(false)}
+                            onDrop={async (e) => {
+                              e.preventDefault();
+                              setIsDraggingShowcase(false);
+                              if (e.dataTransfer.files?.length) {
+                                await handleShowcaseImageUpload(e.dataTransfer.files[0]);
+                              }
+                            }}
+                            className={`border border-dashed p-6 text-center transition-all cursor-pointer rounded-sm flex flex-col items-center justify-center min-h-[140px] bg-background/50 ${
+                              isDraggingShowcase ? "border-bronze bg-bronze/5" : "border-border hover:border-bronze/50"
+                            }`}
+                          >
+                            {isUploadingShowcaseImage ? (
+                              <div className="flex flex-col items-center gap-2">
+                                <div className="w-5 h-5 border border-bronze border-t-transparent rounded-full animate-spin" />
+                                <span className="font-body text-[0.62rem] text-muted tracking-wider uppercase">Uploading...</span>
+                              </div>
+                            ) : showcaseFormData.image ? (
+                              <div className="relative group/img w-full max-h-[120px] overflow-hidden">
+                                <img
+                                  src={showcaseFormData.image}
+                                  alt="Upload preview"
+                                  className="w-full h-full object-cover rounded-sm"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setShowcaseFormData(prev => ({ ...prev, image: "" }))}
+                                  className="absolute top-1.5 right-1.5 bg-red-600/90 text-white border-0 cursor-pointer rounded-full p-1.5 hover:bg-red-700 transition-colors"
+                                >
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <svg className="w-6 h-6 text-muted mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <span className="font-body text-[0.62rem] text-muted block tracking-wider uppercase mb-1">
+                                  Drag image file here or
+                                </span>
+                                <input
+                                  type="file"
+                                  id="showcase-file-input"
+                                  onChange={async (e) => {
+                                    if (e.target.files?.length) {
+                                      await handleShowcaseImageUpload(e.target.files[0]);
+                                    }
+                                  }}
+                                  className="hidden"
+                                  accept="image/*"
+                                />
+                                <label
+                                  htmlFor="showcase-file-input"
+                                  className="font-body text-[0.62rem] text-bronze cursor-pointer font-semibold underline hover:text-ink tracking-wider uppercase"
+                                >
+                                  Browse Files
+                                </label>
+                              </>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="submit"
+                          disabled={isUploadingShowcaseImage}
+                          className="w-full bg-ink hover:bg-bronze disabled:bg-muted text-background font-body font-medium text-[0.62rem] tracking-[0.22em] uppercase py-3 border-0 cursor-pointer transition-colors duration-200 rounded-[2px]"
+                        >
+                          Submit Showcase Card
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Right Column: Existing Showcases Gallery */}
+                    <div className="lg:col-span-7 bg-white border border-border p-6 rounded-md space-y-6">
+                      <div className="pb-3 border-b border-border/60">
+                        <h3 className="font-display font-light text-base text-ink m-0 uppercase tracking-widest">
+                          Active Showcases ({showcases.length})
+                        </h3>
+                        <p className="font-body text-[0.68rem] text-muted m-0 mt-1">
+                          Current community layouts displayed live.
+                        </p>
+                      </div>
+
+                      {showcasesLoading ? (
+                        <div className="text-center font-body text-xs text-muted py-12 animate-pulse flex flex-col items-center justify-center">
+                          <div className="w-5 h-5 border border-bronze border-t-transparent rounded-full animate-spin mb-4" />
+                          Loading active showcases...
+                        </div>
+                      ) : showcases.length === 0 ? (
+                        <div className="text-center py-12 border border-dashed border-border/70 rounded-md">
+                          <span className="font-body text-xs text-muted">No community showcase cards found. Add one on the left!</span>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto pr-1">
+                          {showcases.map((item) => (
+                            <div
+                              key={item._id}
+                              className="border border-border/80 rounded-md overflow-hidden bg-background flex flex-col relative group"
+                            >
+                              {/* Delete button (Top Right overlay) */}
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteShowcase(item._id)}
+                                className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white border-0 cursor-pointer p-1.5 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10"
+                                title="Remove showcase post"
+                              >
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
+                                </svg>
+                              </button>
+
+                              {/* Showcase Image */}
+                              <div className="w-full aspect-[4/3] bg-surface overflow-hidden border-b border-border">
+                                <img
+                                  src={item.image}
+                                  alt={`Styled room by ${item.handle}`}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+
+                              {/* Showcase Metadata */}
+                              <div className="p-4 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="font-body font-semibold text-[0.7rem] text-bronze">
+                                    {item.handle}
+                                  </span>
+                                  <span className="font-body text-[0.62rem] text-muted bg-surface border border-border px-2 py-0.5 rounded-sm">
+                                    {item.space}
+                                  </span>
+                                </div>
+                                <div className="font-body text-[0.68rem] text-ink flex items-center gap-1.5">
+                                  <span className="text-muted">Featured:</span>
+                                  <span className="font-medium">{item.productName} (ID: {item.productId})</span>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                  </div>
+                </div>
+              )}
         </div>
       </main>
 
@@ -2479,8 +4844,8 @@ const AdminPage = () => {
             <div className="space-y-6">
               
               {/* Product Basic Info */}
-              <div className="grid grid-cols-3 gap-4">
-                <div className="col-span-3 sm:col-span-1">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
                   <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Product Name</label>
                   <input
                     type="text"
@@ -2492,23 +4857,7 @@ const AdminPage = () => {
                   />
                 </div>
 
-                <div className="col-span-3 sm:col-span-1">
-                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Category</label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    className="w-full bg-[#FDFBF7] border border-border px-3 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] transition-all duration-300"
-                  >
-                    <option value="furniture">Furniture</option>
-                    <option value="lighting">Lighting</option>
-                    <option value="wall-decor">Wall Decor</option>
-                    <option value="textiles">Textiles</option>
-                    <option value="decor-accessories">Decor Accessories</option>
-                  </select>
-                </div>
-
-                <div className="col-span-3 sm:col-span-1">
+                <div>
                   <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Inventory Stock</label>
                   <input
                     type="number"
@@ -2518,6 +4867,41 @@ const AdminPage = () => {
                     placeholder="e.g., 10"
                     className="w-full bg-[#FDFBF7] border border-border px-4 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] transition-all duration-300"
                   />
+                </div>
+
+                <div>
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Category</label>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    className="w-full bg-[#FDFBF7] border border-border px-3 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] transition-all duration-300"
+                  >
+                    {categories.map((cat) => (
+                      <option key={cat.slug} value={cat.slug}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-1.5 font-medium">Atelier Type (Subcategory)</label>
+                  <select
+                    name="subcategory"
+                    value={formData.subcategory || ""}
+                    onChange={handleInputChange}
+                    className="w-full bg-[#FDFBF7] border border-border px-3 py-3 font-body text-xs text-ink outline-none focus:border-bronze rounded-[2px] transition-all duration-300"
+                  >
+                    <option value="">-- Select Type --</option>
+                    {subcategories
+                      .filter((sub) => !formData.category || sub.category === formData.category)
+                      .map((sub) => (
+                        <option key={sub.slug} value={sub.slug}>
+                          {sub.name}
+                        </option>
+                      ))}
+                  </select>
                 </div>
               </div>
 
@@ -2768,24 +5152,38 @@ const AdminPage = () => {
               <div>
                 <label className="font-body text-[0.62rem] uppercase tracking-wider text-muted block mb-2 font-medium">Curated Collections</label>
                 <div className="grid grid-cols-2 gap-y-2">
-                  {[
-                    "modern-minimalist",
-                    "luxury-living",
-                    "scandinavian",
-                    "boho-chic",
-                    "new-arrivals",
-                    "best-sellers"
-                  ].map((coll) => (
-                    <label key={coll} className="flex items-center gap-2 font-body text-xs text-ink select-none cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.collections.includes(coll)}
-                        onChange={() => handleCheckboxChange("collections", coll)}
-                        className="accent-bronze"
-                      />
-                      <span className="capitalize">{coll.replace("-", " ")}</span>
-                    </label>
-                  ))}
+                  {collections.length === 0 ? (
+                    [
+                      "modern-minimalist",
+                      "luxury-living",
+                      "scandinavian",
+                      "boho-chic",
+                      "new-arrivals",
+                      "best-sellers"
+                    ].map((coll) => (
+                      <label key={coll} className="flex items-center gap-2 font-body text-xs text-ink select-none cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.collections.includes(coll)}
+                          onChange={() => handleCheckboxChange("collections", coll)}
+                          className="accent-bronze"
+                        />
+                        <span className="capitalize">{coll.replace("-", " ")}</span>
+                      </label>
+                    ))
+                  ) : (
+                    collections.map((coll) => (
+                      <label key={coll.slug} className="flex items-center gap-2 font-body text-xs text-ink select-none cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.collections.includes(coll.slug)}
+                          onChange={() => handleCheckboxChange("collections", coll.slug)}
+                          className="accent-bronze"
+                        />
+                        <span>{coll.name}</span>
+                      </label>
+                    ))
+                  )}
                 </div>
               </div>
 
