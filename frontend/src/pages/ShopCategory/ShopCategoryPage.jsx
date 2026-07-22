@@ -138,7 +138,7 @@ const ShopCategoryPage = () => {
           </div>
 
           {/* Right Controls */}
-          <div className="flex items-center gap-5">
+          <div className="flex items-center justify-between md:justify-end gap-3 sm:gap-5 w-full md:w-auto mt-3 md:mt-0 border-t border-border/40 md:border-t-0 pt-3 md:pt-0">
             <span className="font-body font-light text-[0.65rem] text-muted">
               {filteredProducts.length} results
             </span>

@@ -210,8 +210,51 @@ const ProductDetailPage = () => {
           
           {/* Left Column: Image Gallery (cols: 6) */}
           <div className="lg:col-span-6 flex flex-col gap-4">
-            {/* Main Image View - using containment and height constraints for readability */}
-            <div className="relative overflow-hidden bg-surface border border-border h-[350px] sm:h-[450px] md:h-[500px] lg:h-[550px] flex items-center justify-center group rounded-[20px]">
+            {/* Mobile Swipeable Gallery Carousel (hidden on desktop) */}
+            <div className="lg:hidden relative overflow-hidden bg-surface border border-border h-[350px] sm:h-[450px] rounded-[20px]">
+              <div 
+                className="flex h-full overflow-x-auto snap-x snap-mandatory scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                onScroll={(e) => {
+                  const idx = Math.round(e.target.scrollLeft / e.target.clientWidth);
+                  if (idx !== activeImageIndex && idx >= 0 && idx < product.images.length) {
+                    setActiveImageIndex(idx);
+                  }
+                }}
+              >
+                {product.images.map((img, idx) => (
+                  <div key={idx} className="w-full h-full flex-shrink-0 snap-center flex items-center justify-center p-2">
+                    <img
+                      src={img}
+                      alt={`${product.name} view ${idx + 1}`}
+                      className="max-w-full max-h-full w-auto h-auto object-contain"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {product.badge && (
+                <span className="absolute top-4 left-4 bg-bronze text-background font-body text-[0.5rem] tracking-[0.2em] uppercase px-3 py-1 font-medium rounded-full z-10">
+                  {product.badge}
+                </span>
+              )}
+
+              {/* Dot Indicators */}
+              {product.images.length > 1 && (
+                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-10 bg-dark/20 px-3 py-1.5 rounded-full backdrop-blur-xs">
+                  {product.images.map((_, idx) => (
+                    <span
+                      key={idx}
+                      className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+                        activeImageIndex === idx ? "bg-white w-3" : "bg-white/40"
+                      }`}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Desktop Image View (hidden on mobile) */}
+            <div className="hidden lg:flex relative overflow-hidden bg-surface border border-border h-[550px] items-center justify-center group rounded-[20px]">
               <img
                 src={product.images[activeImageIndex]}
                 alt={product.name}
@@ -227,7 +270,7 @@ const ProductDetailPage = () => {
                       e.preventDefault();
                       setActiveImageIndex((prev) => (prev === 0 ? product.images.length - 1 : prev - 1));
                     }}
-                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-ink text-ink hover:text-background flex items-center justify-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 z-10 backdrop-blur-xs border-0 md:opacity-0 group-hover:opacity-100 opacity-90"
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-ink text-ink hover:text-background flex items-center justify-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 z-10 backdrop-blur-xs border-0 opacity-0 group-hover:opacity-100"
                     aria-label="Previous Image"
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -241,7 +284,7 @@ const ProductDetailPage = () => {
                       e.preventDefault();
                       setActiveImageIndex((prev) => (prev === product.images.length - 1 ? 0 : prev + 1));
                     }}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-ink text-ink hover:text-background flex items-center justify-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 z-10 backdrop-blur-xs border-0 md:opacity-0 group-hover:opacity-100 opacity-90"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/95 hover:bg-ink text-ink hover:text-background flex items-center justify-center cursor-pointer shadow-sm hover:shadow-md transition-all duration-300 z-10 backdrop-blur-xs border-0 opacity-0 group-hover:opacity-100"
                     aria-label="Next Image"
                   >
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -258,14 +301,14 @@ const ProductDetailPage = () => {
               )}
             </div>
 
-            {/* Thumbnail Controls */}
+            {/* Desktop Thumbnail Controls (hidden on mobile) */}
             {product.images.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              <div className="hidden lg:flex gap-3 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {product.images.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`relative w-16 sm:w-20 h-20 sm:h-24 flex-shrink-0 bg-surface border rounded-[12px] overflow-hidden cursor-pointer transition-all duration-300 flex items-center justify-center p-1 ${
+                    className={`relative w-20 h-24 flex-shrink-0 bg-surface border rounded-[12px] overflow-hidden cursor-pointer transition-all duration-300 flex items-center justify-center p-1 ${
                       activeImageIndex === idx ? "border-bronze shadow-xs" : "border-border hover:border-bronze/40"
                     }`}
                   >
@@ -381,17 +424,28 @@ const ProductDetailPage = () => {
               <button
                 onClick={handleAddToCart}
                 disabled={cartState !== "idle" || product.stock === 0}
-                className={`flex-1 h-12 relative overflow-hidden transition-all duration-300 font-body font-medium text-xs tracking-widest uppercase cursor-pointer border ${
+                className={`flex-1 h-12 relative overflow-hidden transition-all duration-300 font-body font-medium text-xs tracking-widest uppercase cursor-pointer border rounded-[8px] hover:-translate-y-[1px] shadow-sm active:translate-y-0 active:shadow-xs ${
                   cartState === "idle"
                     ? product.stock === 0
                       ? "border-border bg-border/20 text-muted/60 cursor-not-allowed"
-                      : "border-bronze bg-bronze text-background hover:brightness-110"
+                      : "border-bronze bg-bronze text-background hover:brightness-110 hover:shadow-md"
                     : cartState === "adding"
                     ? "border-border bg-surface text-ink cursor-default"
                     : "border-emerald-600 bg-emerald-600 text-white cursor-default"
                 }`}
               >
-                {cartState === "idle" && (product.stock === 0 ? "Out of Stock" : "Add to Cart")}
+                {cartState === "idle" && (
+                  product.stock === 0 ? (
+                    "Out of Stock"
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-current">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      Add to Cart
+                    </span>
+                  )
+                )}
                 {cartState === "adding" && (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="animate-spin h-4 w-4 text-ink" viewBox="0 0 24 24" fill="none">
@@ -666,28 +720,28 @@ const ProductDetailPage = () => {
               <div className="flex flex-col gap-6.5 max-h-[550px] overflow-y-auto pr-2">
                 {reviews.map((rev) => (
                   <div key={rev._id} className="border-b border-border/50 pb-5 last:border-0 last:pb-0 animate-fadeIn">
-                    <div className="flex items-center justify-between gap-4 mb-2.5">
-                      <div className="flex items-center gap-2">
-                        <span className="font-body font-medium text-xs text-ink">
-                          {rev.name}
-                        </span>
-                        {rev.isVerifiedBuyer && (
-                          <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200/40 text-[0.55rem] font-body font-medium px-1.5 py-0.5 rounded-sm uppercase tracking-wider scale-90 origin-left">
-                            <svg className="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Verified Buyer
-                          </span>
-                        )}
-                      </div>
-                      <span className="font-body text-[0.68rem] text-muted font-light">
-                        {new Date(rev.createdAt).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                        })}
-                      </span>
-                    </div>
+                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4 mb-2.5">
+                       <div className="flex items-center gap-2 flex-wrap">
+                         <span className="font-body font-medium text-xs text-ink">
+                           {rev.name}
+                         </span>
+                         {rev.isVerifiedBuyer && (
+                           <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200/40 text-[0.55rem] font-body font-medium px-1.5 py-0.5 rounded-sm uppercase tracking-wider scale-90 origin-left">
+                             <svg className="w-2.5 h-2.5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                             </svg>
+                             Verified Buyer
+                           </span>
+                         )}
+                       </div>
+                       <span className="font-body text-[0.68rem] text-muted font-light">
+                         {new Date(rev.createdAt).toLocaleDateString("en-US", {
+                           year: "numeric",
+                           month: "short",
+                           day: "numeric",
+                         })}
+                       </span>
+                     </div>
 
                     <div className="flex items-center text-gold gap-0.5 mb-2.5">
                       {[...Array(5)].map((_, idx) => (
@@ -729,9 +783,11 @@ const ProductDetailPage = () => {
             You May Also <em className="text-bronze italic font-medium">Like</em>
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex overflow-x-auto pb-4 gap-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory lg:grid lg:grid-cols-4 lg:pb-0 lg:overflow-x-visible">
             {displayRelated.map((p) => (
-              <ProductCard key={p.id || p._id} product={p} />
+              <div key={p.id || p._id} className="w-[260px] shrink-0 snap-start lg:w-auto lg:shrink-1 lg:snap-none">
+                <ProductCard product={p} />
+              </div>
             ))}
           </div>
         </div>

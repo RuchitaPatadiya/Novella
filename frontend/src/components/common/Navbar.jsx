@@ -119,8 +119,12 @@ const Navbar = () => {
   return (
     <>
       <nav
-        onMouseLeave={() => setActiveMega(null)}
-        className={`fixed top-0 left-0 right-0 z-50 h-[76px] flex items-center justify-between px-8 md:px-14 transition-all duration-500 ${
+        onMouseLeave={() => {
+          if (window.matchMedia("(hover: hover)").matches) {
+            setActiveMega(null);
+          }
+        }}
+        className={`fixed top-0 left-0 right-0 z-50 h-[76px] flex items-center justify-between px-4 sm:px-8 md:px-14 transition-all duration-500 ${
           isSolid
             ? isNavbarDark
               ? "bg-dark/95 backdrop-blur-md border-b border-gold/12 shadow-md"
@@ -128,23 +132,23 @@ const Navbar = () => {
             : "bg-gradient-to-b from-black/60 to-transparent"
         }`}
       >
-        <Link to="/" className="flex items-center gap-3 no-underline group shrink-0">
+        <Link to="/" className="flex items-center gap-2 sm:gap-3 no-underline group shrink-0">
           <img
             src={logoImg}
             alt="Novella"
-            className={`w-10 h-10 object-contain transition-all duration-300 ${
+            className={`w-8 h-8 sm:w-10 sm:h-10 object-contain transition-all duration-300 ${
               isNavbarDark
                 ? "[filter:invert(1)_sepia(1)_saturate(1.5)_hue-rotate(5deg)_brightness(0.9)]"
                 : "[filter:contrast(1.1)_brightness(0.95)]"
             }`}
           />
           <div className="flex flex-col leading-none">
-            <span className={`font-display font-semibold text-[1.05rem] tracking-[0.25em] uppercase transition-colors duration-300 ${
+            <span className={`font-display font-semibold text-[0.95rem] sm:text-[1.05rem] tracking-[0.2em] sm:tracking-[0.25em] uppercase transition-colors duration-300 ${
               isNavbarDark ? "text-white group-hover:text-gold" : "text-ink group-hover:text-bronze"
             }`}>
               Novella
             </span>
-            <span className={`font-body font-light text-[0.42rem] tracking-[0.35em] uppercase mt-[2px] ${
+            <span className={`hidden sm:inline-block font-body font-light text-[0.42rem] tracking-[0.35em] uppercase mt-[2px] ${
               isNavbarDark ? "text-gold/50" : "text-bronze/70"
             }`}>
               Home &amp; Décor
@@ -160,7 +164,11 @@ const Navbar = () => {
               <li
                 key={link.label}
                 className="relative"
-                onMouseEnter={() => setActiveMega(link.mega ? link.label : null)}
+                onMouseEnter={() => {
+                  if (window.matchMedia("(hover: hover)").matches) {
+                    setActiveMega(link.mega ? link.label : null);
+                  }
+                }}
               >
                 <Link
                   to={link.to}
@@ -193,7 +201,7 @@ const Navbar = () => {
           })}
         </ul>
 
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-3 sm:gap-5">
           <button
             aria-label="Search"
             onClick={() => setSearchOpen(true)}

@@ -32,10 +32,12 @@ export default function ShopProductGrid({ products, onClearFilters }) {
 
   return (
     <div className="space-y-12">
-      {/* Product Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-5 gap-y-10 animate-fadeIn">
+      {/* Product Grid / Horizontal Scroll Row on Mobile */}
+      <div className="flex overflow-x-auto pb-4 gap-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden snap-x snap-mandatory sm:grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 sm:gap-x-5 sm:gap-y-10 sm:pb-0 sm:overflow-x-visible animate-fadeIn">
         {paginatedProducts.map((product) => (
-          <ProductCard key={product.id || product._id} product={product} />
+          <div key={product.id || product._id} className="w-[260px] shrink-0 snap-start sm:w-auto sm:shrink-1 sm:snap-none">
+            <ProductCard product={product} />
+          </div>
         ))}
       </div>
 

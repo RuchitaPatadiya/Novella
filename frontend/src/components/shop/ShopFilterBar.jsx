@@ -90,7 +90,7 @@ export default function ShopFilterBar({
         </div>
 
         {/* Right controls */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center justify-between md:justify-end gap-3 sm:gap-5 w-full md:w-auto mt-3 md:mt-0 border-t border-border/40 md:border-t-0 pt-3 md:pt-0">
           {/* Result count */}
           <span className="font-body font-light text-[0.65rem] text-muted">
             {resultCount} results
@@ -142,7 +142,7 @@ export default function ShopFilterBar({
 
       {/* Expandable Advanced Filter Drawer */}
       {filtersOpen && (
-        <div className="px-8 py-7 bg-surface border border-border border-t-0 mb-8 grid grid-cols-1 md:grid-cols-3 gap-8 animate-fadeIn">
+        <div className="px-6 sm:px-8 py-7 bg-surface border border-border border-t-0 mb-8 grid grid-cols-1 md:grid-cols-3 gap-8 animate-fadeIn">
           
           {/* Column 1: Spaces */}
           <div>

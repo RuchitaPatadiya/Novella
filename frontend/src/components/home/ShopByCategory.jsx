@@ -94,7 +94,7 @@ export default function ShopByCategory() {
 
         {/* Clean Minimalist Rounded Card Scroll Row */}
         <div 
-          className="flex items-stretch gap-6 overflow-x-auto pb-4 scrollbar-none"
+          className="flex items-stretch gap-6 overflow-x-auto pb-4 scrollbar-none snap-x snap-mandatory"
           style={{
             msOverflowStyle: "none",
             scrollbarWidth: "none",
@@ -105,7 +105,7 @@ export default function ShopByCategory() {
             <Link
               key={cat.id}
               to={`/shop/${cat.id}`}
-              className="group flex flex-col items-center justify-center bg-surface/35 hover:bg-surface border border-border/50 hover:border-bronze/35 rounded-[20px] py-8 px-4 transition-all duration-400 no-underline hover:shadow-[0_12px_28px_rgba(176,125,58,0.05)] w-[190px] sm:w-[220px] shrink-0"
+              className="group flex flex-col items-center justify-center bg-surface/35 hover:bg-surface border border-border/50 hover:border-bronze/35 rounded-[20px] py-8 px-4 transition-all duration-400 no-underline hover:shadow-[0_12px_28px_rgba(176,125,58,0.05)] w-[190px] sm:w-[220px] shrink-0 snap-start"
             >
               {/* Round Image Mask */}
               <div className="w-24 h-24 rounded-full overflow-hidden border border-border bg-background flex items-center justify-center transition-all duration-500 group-hover:scale-105 group-hover:border-bronze/35 shadow-inner shrink-0 mb-4">

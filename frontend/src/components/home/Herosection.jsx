@@ -79,17 +79,21 @@ const HeroSection = () => {
         {/* Headline */}
         <h1 className="m-0 p-0 mb-1">
           <span
-            className="block leading-[1.08] font-display font-light italic text-[clamp(3.2rem,6vw,6.2rem)] text-cream"
+            className="block leading-[1.08] font-display font-light italic text-[clamp(2.2rem,6vw,6.2rem)] text-cream"
             style={fadeUp("370ms")}
           >
-            {heroData.headline.split("|")[0]?.trim() || "Where every room"}
+            {heroData.headline.includes("|")
+              ? heroData.headline.split("|")[0]?.trim()
+              : heroData.headline}
           </span>
-          <span
-            className="block leading-[1.08] font-display font-semibold text-[clamp(3.4rem,6.5vw,6.8rem)] text-gold tracking-[-0.01em]"
-            style={fadeUp("510ms")}
-          >
-            {heroData.headline.split("|")[1]?.trim() || "tells your story."}
-          </span>
+          {heroData.headline.includes("|") && (
+            <span
+              className="block leading-[1.08] font-display font-semibold text-[clamp(2.4rem,6.5vw,6.8rem)] text-gold tracking-[-0.01em]"
+              style={fadeUp("510ms")}
+            >
+              {heroData.headline.split("|")[1]?.trim()}
+            </span>
+          )}
         </h1>
 
         {/* Decorative rule */}
@@ -110,9 +114,9 @@ const HeroSection = () => {
         </p>
 
         {/* CTAs */}
-        <div className="flex items-center gap-7 mt-10" style={fadeUp("800ms")}>
+        <div className="flex flex-wrap items-center gap-4 sm:gap-7 mt-8 sm:mt-10" style={fadeUp("800ms")}>
           <Link to={heroData.ctaLink} className="no-underline">
-            <span className="block px-9 py-[13px] font-body font-medium text-[0.65rem] tracking-[0.28em] uppercase bg-gold text-dark transition-colors duration-300 hover:brightness-110">
+            <span className="block px-7 sm:px-9 py-[11px] sm:py-[13px] font-body font-medium text-[0.65rem] tracking-[0.28em] uppercase bg-gold text-dark transition-colors duration-300 hover:brightness-110">
               {heroData.ctaText}
             </span>
           </Link>
@@ -133,7 +137,7 @@ const HeroSection = () => {
 
       {/* Scroll indicator */}
       <div
-        className="absolute bottom-10 right-10 flex flex-col items-center gap-3"
+        className="hidden sm:flex absolute bottom-10 right-10 flex-col items-center gap-3"
         style={{ opacity: visible ? 0.5 : 0, transition: "opacity 1200ms ease", transitionDelay: "1100ms" }}
       >
         <span className="font-body text-[0.5rem] [writing-mode:vertical-rl] font-normal tracking-[0.3em] uppercase text-cream">
