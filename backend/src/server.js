@@ -1,4 +1,6 @@
 import "dotenv/config"; // Instantly loads environment variables before any other file is imported!
+import dns from "dns";
+dns.setDefaultResultOrder("ipv4first");
 import connectDB from "./config/db.js";
 import app from "./app.js";
 
